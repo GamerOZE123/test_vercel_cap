@@ -13,11 +13,12 @@ export default function Home() {
 
   const fetchPosts = async () => {
     try {
+      console.log('Fetching posts...');
       const { data, error } = await supabase
         .from('posts')
         .select(`
           *,
-          profiles:user_id (
+          profiles!posts_user_id_fkey (
             user_id,
             full_name,
             username,
@@ -28,10 +29,16 @@ export default function Home() {
         `)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching posts:', error);
+        throw error;
+      }
+      
+      console.log('Fetched posts:', data);
       setPosts(data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -42,11 +49,19 @@ export default function Home() {
     fetchPosts();
 
     const channel = supabase
-      .channel('posts')
+      .channel('posts_channel')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'posts' },
-        () => {
+        (payload) => {
+          console.log('New post added:', payload);
           fetchPosts(); // Refresh posts when a new one is added
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'posts' },
+        (payload) => {
+          console.log('Post updated:', payload);
+          fetchPosts();
         }
       )
       .subscribe();
@@ -74,6 +89,7 @@ export default function Home() {
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => {
+              console.log('Rendering post:', post);
               const transformedPost = {
                 id: post.id,
                 user: {
@@ -98,7 +114,7 @@ export default function Home() {
         </div>
       </div>
       
-      <ImageUploadButton />
+      <ImageUploadButton onPostCreated={fetchPosts} />
     </Layout>
   );
 }

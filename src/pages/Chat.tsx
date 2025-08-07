@@ -31,6 +31,8 @@ export default function Chat() {
   useEffect(() => {
     if (!selectedChat) return;
 
+    console.log('Setting up real-time for conversation:', selectedChat.conversation_id);
+
     const channel = supabase
       .channel(`messages:${selectedChat.conversation_id}`)
       .on(
@@ -51,26 +53,39 @@ export default function Chat() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up channel');
       supabase.removeChannel(channel);
     };
   }, [selectedChat, user, fetchMessages]);
 
-  const handleChatSelect = (conversation: any) => {
+  const handleChatSelect = async (conversation: any) => {
     console.log('Selecting chat:', conversation);
     setSelectedChat(conversation);
-    fetchMessages(conversation.conversation_id);
+    await fetchMessages(conversation.conversation_id);
   };
 
   const handleSendMessage = async () => {
-    if (!selectedChat || !newMessage.trim()) return;
+    if (!selectedChat || !newMessage.trim()) {
+      console.log('Cannot send message: no chat selected or empty message');
+      return;
+    }
     
     console.log('Sending message:', newMessage, 'to conversation:', selectedChat.conversation_id);
-    await sendMessage(selectedChat.conversation_id, newMessage);
-    setNewMessage('');
-    refreshConversations();
+    
+    try {
+      await sendMessage(selectedChat.conversation_id, newMessage);
+      setNewMessage('');
+      await refreshConversations();
+      toast.success('Message sent!');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    }
   };
 
   const handleStartChat = async (userId: string) => {
@@ -99,8 +114,9 @@ export default function Chat() {
         setSelectedChat(tempChat);
         await fetchMessages(conversationId);
         
-        setTimeout(() => {
-          refreshConversations();
+        // Refresh conversations after a short delay
+        setTimeout(async () => {
+          await refreshConversations();
         }, 1000);
         
         toast.success('Chat started!');

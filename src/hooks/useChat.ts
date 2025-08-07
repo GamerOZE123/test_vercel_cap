@@ -31,11 +31,17 @@ export const useChat = () => {
     if (!user) return;
     
     try {
+      console.log('Fetching conversations for user:', user.id);
       const { data, error } = await supabase.rpc('get_user_conversations', {
         target_user_id: user.id
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching conversations:', error);
+        throw error;
+      }
+      
+      console.log('Fetched conversations:', data);
       setConversations(data || []);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -46,35 +52,53 @@ export const useChat = () => {
 
   const fetchMessages = async (conversationId: string) => {
     try {
+      console.log('Fetching messages for conversation:', conversationId);
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching messages:', error);
+        throw error;
+      }
+      
+      console.log('Fetched messages:', data);
       setCurrentMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setCurrentMessages([]);
     }
   };
 
   const sendMessage = async (conversationId: string, content: string) => {
-    if (!user || !content.trim()) return;
+    if (!user || !content.trim()) {
+      console.log('Cannot send message: no user or empty content');
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      console.log('Sending message:', { conversationId, content, userId: user.id });
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
           content: content.trim()
-        });
+        })
+        .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
+      
+      console.log('Message sent successfully:', data);
       await fetchMessages(conversationId);
     } catch (error) {
       console.error('Error sending message:', error);
+      throw error;
     }
   };
 
@@ -82,12 +106,18 @@ export const useChat = () => {
     if (!user) return null;
 
     try {
+      console.log('Creating conversation between:', user.id, 'and', otherUserId);
       const { data, error } = await supabase.rpc('get_or_create_conversation', {
         user1_id: user.id,
         user2_id: otherUserId
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating conversation:', error);
+        throw error;
+      }
+      
+      console.log('Conversation created/found:', data);
       await fetchConversations();
       return data;
     } catch (error) {
@@ -97,7 +127,9 @@ export const useChat = () => {
   };
 
   useEffect(() => {
-    fetchConversations();
+    if (user) {
+      fetchConversations();
+    }
   }, [user]);
 
   return {
