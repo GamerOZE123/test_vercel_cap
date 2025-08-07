@@ -17,6 +17,7 @@ export default function Chat() {
   const { conversations, currentMessages, loading, fetchMessages, sendMessage, createConversation, refreshConversations } = useChat();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -70,21 +71,30 @@ export default function Chat() {
   };
 
   const handleSendMessage = async () => {
-    if (!selectedChat || !newMessage.trim()) {
-      console.log('Cannot send message: no chat selected or empty message');
+    if (!selectedChat || !newMessage.trim() || sending) {
+      console.log('Cannot send message: no chat selected, empty message, or already sending');
       return;
     }
     
+    setSending(true);
     console.log('Sending message:', newMessage, 'to conversation:', selectedChat.conversation_id);
     
     try {
-      await sendMessage(selectedChat.conversation_id, newMessage);
-      setNewMessage('');
-      await refreshConversations();
-      toast.success('Message sent!');
+      const result = await sendMessage(selectedChat.conversation_id, newMessage);
+      
+      if (result.success) {
+        setNewMessage('');
+        await refreshConversations();
+        toast.success('Message sent!');
+      } else {
+        console.error('Failed to send message:', result.error);
+        toast.error(`Failed to send message: ${result.error}`);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -240,13 +250,22 @@ export default function Chat() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="flex-1 bg-muted/50 border-muted text-foreground placeholder:text-muted-foreground focus:border-primary"
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === 'Enter' && !sending) {
                         handleSendMessage();
                       }
                     }}
+                    disabled={sending}
                   />
-                  <Button onClick={handleSendMessage} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Send className="w-4 h-4" />
+                  <Button 
+                    onClick={handleSendMessage} 
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={sending || !newMessage.trim()}
+                  >
+                    {sending ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               </div>

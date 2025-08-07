@@ -18,7 +18,7 @@ export default function Home() {
         .from('posts')
         .select(`
           *,
-          profiles!posts_user_id_fkey (
+          profiles (
             user_id,
             full_name,
             username,
@@ -38,7 +38,21 @@ export default function Home() {
       setPosts(data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      setPosts([]);
+      // Fallback: fetch posts without profile data
+      try {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        
+        console.log('Fallback posts data:', fallbackData);
+        setPosts(fallbackData || []);
+      } catch (fallbackError) {
+        console.error('Fallback fetch failed:', fallbackError);
+        setPosts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +108,7 @@ export default function Home() {
                 id: post.id,
                 user: {
                   name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
-                  avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
+                  avatar: (post.profiles?.full_name || post.profiles?.username || 'U').charAt(0).toUpperCase(),
                   university: post.profiles?.university || post.profiles?.major || 'University'
                 },
                 content: post.content || '',

@@ -75,11 +75,25 @@ export const useChat = () => {
   const sendMessage = async (conversationId: string, content: string) => {
     if (!user || !content.trim()) {
       console.log('Cannot send message: no user or empty content');
-      return;
+      return { success: false, error: 'No user or empty content' };
     }
 
     try {
       console.log('Sending message:', { conversationId, content, userId: user.id });
+      
+      // First, ensure the conversation exists and user is a participant
+      const { data: participantCheck, error: participantError } = await supabase
+        .from('conversation_participants')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (participantError || !participantCheck) {
+        console.error('User is not a participant in this conversation:', participantError);
+        return { success: false, error: 'Not a participant in conversation' };
+      }
+
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -87,18 +101,20 @@ export const useChat = () => {
           sender_id: user.id,
           content: content.trim()
         })
-        .select();
+        .select()
+        .single();
       
       if (error) {
         console.error('Error sending message:', error);
-        throw error;
+        return { success: false, error: error.message };
       }
       
       console.log('Message sent successfully:', data);
       await fetchMessages(conversationId);
+      return { success: true, data };
     } catch (error) {
       console.error('Error sending message:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   };
 
