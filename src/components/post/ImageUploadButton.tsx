@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { Plus, Image } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ImageUploadModal from './ImageUploadModal';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,49 +24,65 @@ export default function ImageUploadButton() {
       setSelectedImage(file);
       setIsModalOpen(true);
     }
-    // Reset the input value so the same file can be selected again
     event.target.value = '';
   };
 
   const handleUpload = async (file: File, caption: string) => {
-    if (!user) return;
+    if (!user) {
+      toast.error('Please log in to upload posts');
+      return;
+    }
 
     setIsUploading(true);
     try {
-      // Upload image to Supabase storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `posts/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('post-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('post-images')
-        .getPublicUrl(filePath);
-
-      // Create post
-      const { error: postError } = await supabase
+      console.log('Starting upload process...');
+      
+      // Create post first without image
+      const { data: postData, error: postError } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: caption || 'Shared an image',
-          image_url: publicUrl
-        });
+          image_url: null
+        })
+        .select()
+        .single();
 
-      if (postError) throw postError;
+      if (postError) {
+        console.error('Post creation error:', postError);
+        throw postError;
+      }
 
-      toast.success('Post uploaded successfully!');
-      setIsModalOpen(false);
-      setSelectedImage(null);
+      console.log('Post created:', postData);
+
+      // For now, we'll use a data URL as the image URL
+      // In production, you would upload to a storage service
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageDataUrl = e.target?.result as string;
+        
+        // Update the post with the image data URL
+        const { error: updateError } = await supabase
+          .from('posts')
+          .update({ image_url: imageDataUrl })
+          .eq('id', postData.id);
+
+        if (updateError) {
+          console.error('Image update error:', updateError);
+          throw updateError;
+        }
+
+        console.log('Post updated with image');
+        toast.success('Post uploaded successfully!');
+        setIsModalOpen(false);
+        setSelectedImage(null);
+        setIsUploading(false);
+      };
+      
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading post:', error);
       toast.error('Failed to upload post. Please try again.');
-    } finally {
       setIsUploading(false);
     }
   };

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import UserSearch from '@/components/chat/UserSearch';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -16,8 +17,49 @@ export default function Chat() {
   const { conversations, currentMessages, loading, fetchMessages, sendMessage, createConversation, refreshConversations } = useChat();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentMessages]);
+
+  // Set up real-time message listening
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const channel = supabase
+      .channel(`messages:${selectedChat.conversation_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedChat.conversation_id}`
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          fetchMessages(selectedChat.conversation_id);
+          
+          // Show notification if message is from another user
+          if (payload.new.sender_id !== user?.id) {
+            toast.success('New message received!');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChat, user, fetchMessages]);
 
   const handleChatSelect = (conversation: any) => {
+    console.log('Selecting chat:', conversation);
     setSelectedChat(conversation);
     fetchMessages(conversation.conversation_id);
   };
@@ -25,25 +67,23 @@ export default function Chat() {
   const handleSendMessage = async () => {
     if (!selectedChat || !newMessage.trim()) return;
     
+    console.log('Sending message:', newMessage, 'to conversation:', selectedChat.conversation_id);
     await sendMessage(selectedChat.conversation_id, newMessage);
     setNewMessage('');
-    // Refresh conversations to update last message
     refreshConversations();
   };
 
   const handleStartChat = async (userId: string) => {
     try {
-      // Get user details for the chat header
+      console.log('Starting chat with user:', userId);
       const otherUser = await getUserById(userId);
       if (!otherUser) {
         toast.error('User not found');
         return;
       }
 
-      // Create or get conversation
       const conversationId = await createConversation(userId);
       if (conversationId) {
-        // Create a temporary chat object for immediate UI update
         const tempChat = {
           conversation_id: conversationId,
           other_user_id: userId,
@@ -55,10 +95,10 @@ export default function Chat() {
           unread_count: 0
         };
 
+        console.log('Created temp chat:', tempChat);
         setSelectedChat(tempChat);
-        fetchMessages(conversationId);
+        await fetchMessages(conversationId);
         
-        // Refresh conversations list to get the actual conversation
         setTimeout(() => {
           refreshConversations();
         }, 1000);
@@ -76,7 +116,6 @@ export default function Chat() {
       <div className="h-[calc(100vh-8rem)] flex bg-card rounded-2xl overflow-hidden border border-border">
         {/* Chat List */}
         <div className="w-1/3 border-r border-border flex flex-col bg-card">
-          {/* Header */}
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-foreground">Messages</h2>
@@ -84,7 +123,6 @@ export default function Chat() {
             <UserSearch onStartChat={handleStartChat} />
           </div>
 
-          {/* Conversations */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center">
@@ -132,7 +170,6 @@ export default function Chat() {
         <div className="flex-1 flex flex-col bg-background">
           {selectedChat ? (
             <>
-              {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center justify-between bg-card">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
@@ -150,30 +187,35 @@ export default function Chat() {
                 </Button>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
-                {currentMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                      message.sender_id === user?.id
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted text-foreground'
-                    }`}>
-                      <p className="text-sm">{message.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                {currentMessages.length > 0 ? (
+                  currentMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                        message.sender_id === user?.id
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-foreground'
                       }`}>
-                        {new Date(message.created_at).toLocaleTimeString()}
-                      </p>
+                        <p className="text-sm">{message.content}</p>
+                        <p className={`text-xs mt-1 ${
+                          message.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                        }`}>
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </p>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No messages yet. Start the conversation!
                   </div>
-                ))}
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
               <div className="p-4 border-t border-border bg-card">
                 <div className="flex items-center gap-3">
                   <Input

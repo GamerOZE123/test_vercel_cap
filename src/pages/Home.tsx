@@ -10,7 +10,6 @@ export default function Home() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
 
   const fetchPosts = async () => {
     try {
@@ -38,40 +37,23 @@ export default function Home() {
     }
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!user) return;
-    
-    setIsUploading(true);
-    try {
-      // Create a unique file name
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      
-      // For now, we'll create a post with a placeholder image URL
-      // In a real app, you'd upload to Supabase Storage first
-      const imageUrl = URL.createObjectURL(file);
-      
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: '', // Empty content for image-only posts
-          image_url: imageUrl // In production, this would be the actual uploaded URL
-        });
-      
-      if (error) throw error;
-      
-      // Refresh posts
-      await fetchPosts();
-    } catch (error) {
-      console.error('Error uploading image:', error);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
+  // Set up real-time subscription for new posts
   useEffect(() => {
     fetchPosts();
+
+    const channel = supabase
+      .channel('posts')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'posts' },
+        () => {
+          fetchPosts(); // Refresh posts when a new one is added
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading) {
@@ -92,7 +74,6 @@ export default function Home() {
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => {
-              // Transform the data to match PostCard expectations
               const transformedPost = {
                 id: post.id,
                 user: {
@@ -117,7 +98,7 @@ export default function Home() {
         </div>
       </div>
       
-      <ImageUploadButton onImageSelect={handleImageUpload} isUploading={isUploading} />
+      <ImageUploadButton />
     </Layout>
   );
 }

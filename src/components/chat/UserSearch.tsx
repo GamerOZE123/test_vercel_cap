@@ -19,27 +19,25 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
   const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    // Clear previous timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // Set new timeout
-    debounceRef.current = setTimeout(() => {
-      if (query.trim()) {
+    if (query.trim()) {
+      debounceRef.current = setTimeout(() => {
         searchUsers(query.trim());
         setShowResults(true);
-      } else {
-        setShowResults(false);
-      }
-    }, 500); // Increased debounce time to reduce glitching
+      }, 800);
+    } else {
+      setShowResults(false);
+    }
 
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, searchUsers]);
+  }, [query]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,7 +81,7 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
           {loading ? (
             <div className="p-4 text-center text-muted-foreground">
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              Searching...
+              Searching users...
             </div>
           ) : users.length > 0 ? (
             users.map((user) => (
@@ -103,8 +101,8 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">{user.full_name || user.username}</p>
-                      <p className="text-sm text-muted-foreground">{user.university || 'University'}</p>
-                      {user.major && <p className="text-xs text-muted-foreground">{user.major}</p>}
+                      <p className="text-sm text-muted-foreground">@{user.username}</p>
+                      {user.university && <p className="text-xs text-muted-foreground">{user.university}</p>}
                     </div>
                   </div>
                   <Button

@@ -1,13 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useUsers } from '@/hooks/useUsers';
 import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
-  const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const { users, loading, searchUsers } = useUsers();
   const navigate = useNavigate();
@@ -15,27 +15,25 @@ export default function Header() {
   const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    // Clear previous timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // Set new timeout
-    debounceRef.current = setTimeout(() => {
-      if (query.trim()) {
-        searchUsers(query.trim());
+    if (searchQuery.trim()) {
+      debounceRef.current = setTimeout(() => {
+        searchUsers(searchQuery.trim());
         setShowResults(true);
-      } else {
-        setShowResults(false);
-      }
-    }, 500); // Increased debounce time
+      }, 800);
+    } else {
+      setShowResults(false);
+    }
 
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, searchUsers]);
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,40 +49,33 @@ export default function Header() {
   const handleUserClick = (user: any) => {
     navigate(`/profile/${user.user_id}`);
     setShowResults(false);
-    setQuery('');
+    setSearchQuery('');
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
-      <div className="flex items-center justify-between px-4 py-3">
-        {/* Mobile Logo */}
-        <div className="flex items-center gap-3 md:hidden">
-          <div className="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
-            <span className="text-sm font-bold text-white">U</span>
-          </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Unigramm
-          </span>
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+      <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-primary">Campus Connect</h1>
         </div>
-
-        {/* Desktop Search */}
-        <div className="hidden md:flex items-center flex-1 max-w-md relative" ref={searchRef}>
-          <div className="relative w-full">
+        
+        <div className="flex-1 max-w-md mx-8 relative" ref={searchRef}>
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder="Search users..." 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-10 bg-muted/50 border-border focus:border-primary"
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-muted/50 border-muted text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
           </div>
           
           {showResults && (
-            <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-lg mt-1 shadow-lg max-h-80 overflow-y-auto z-50">
+            <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-lg mt-1 shadow-lg z-50 max-h-80 overflow-y-auto">
               {loading ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  Searching...
+                  Searching users...
                 </div>
               ) : users.length > 0 ? (
                 users.map((user) => (
@@ -101,32 +92,22 @@ export default function Header() {
                       </div>
                       <div>
                         <p className="font-semibold text-foreground">{user.full_name || user.username}</p>
-                        <p className="text-sm text-muted-foreground">{user.university || 'University'}</p>
-                        {user.major && <p className="text-xs text-muted-foreground">{user.major}</p>}
+                        <p className="text-sm text-muted-foreground">@{user.username}</p>
+                        {user.university && <p className="text-xs text-muted-foreground">{user.university}</p>}
                       </div>
                     </div>
                   </div>
                 ))
-              ) : query.trim() ? (
+              ) : searchQuery.trim() ? (
                 <div className="p-4 text-center text-muted-foreground">No users found</div>
               ) : null}
             </div>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          {/* Mobile Search */}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="w-5 h-5" />
-          </Button>
-          
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
             <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full flex items-center justify-center">
-              <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-            </span>
           </Button>
         </div>
       </div>
