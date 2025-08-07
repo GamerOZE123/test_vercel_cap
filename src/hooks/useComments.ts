@@ -10,11 +10,11 @@ interface Comment {
   created_at: string;
   user_id: string;
   post_id: string;
-  profiles?: {
+  profiles: {
     full_name: string;
     username: string;
     avatar_url?: string;
-  };
+  } | null;
 }
 
 export const useComments = (postId: string) => {
@@ -44,13 +44,18 @@ export const useComments = (postId: string) => {
 
       if (error) throw error;
       
-      setComments(data || []);
-      setCommentsCount(data?.length || 0);
+      const transformedComments = (data || []).map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles
+      }));
+      
+      setComments(transformedComments);
+      setCommentsCount(transformedComments?.length || 0);
 
       // Update post comments count
       const { error: updateError } = await supabase
         .from('posts')
-        .update({ comments_count: data?.length || 0 })
+        .update({ comments_count: transformedComments?.length || 0 })
         .eq('id', postId);
 
       if (updateError) console.error('Error updating comments count:', updateError);
@@ -85,7 +90,12 @@ export const useComments = (postId: string) => {
 
       if (error) throw error;
       
-      setComments(prev => [...prev, data]);
+      const transformedComment = {
+        ...data,
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
+      };
+      
+      setComments(prev => [...prev, transformedComment]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;

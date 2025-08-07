@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'University', href: '/university', icon: GraduationCap },
+  { name: 'Notifications', href: '/notifications', icon: Bell }
 ];
 
 export default function Sidebar() {
@@ -47,37 +48,27 @@ export default function Sidebar() {
           <ul className="space-y-2">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
+              const isNotifications = item.name === 'Notifications';
               return (
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
                     className={cn(
-                      'nav-item',
+                      'nav-item relative',
                       isActive && 'active'
                     )}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium">{item.name}</span>
+                    {isNotifications && unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               );
             })}
-            
-            {/* Notifications */}
-            <li>
-              <button
-                className="nav-item w-full relative"
-                onClick={() => {/* TODO: Open notifications panel */}}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="font-medium">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-            </li>
           </ul>
         </nav>
 

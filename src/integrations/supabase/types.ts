@@ -281,6 +281,8 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          followers_count: number | null
+          following_count: number | null
           full_name: string | null
           id: string
           major: string | null
@@ -293,6 +295,8 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number | null
+          following_count?: number | null
           full_name?: string | null
           id?: string
           major?: string | null
@@ -305,6 +309,8 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number | null
+          following_count?: number | null
           full_name?: string | null
           id?: string
           major?: string | null
@@ -348,6 +354,10 @@ export type Database = {
           last_message_time: string
           unread_count: number
         }[]
+      }
+      user_in_conversation: {
+        Args: { conv_id: string; check_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {

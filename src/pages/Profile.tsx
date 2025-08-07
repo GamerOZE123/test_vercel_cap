@@ -1,12 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import PostCard from '@/components/post/PostCard';
 import EditProfileModal from '@/components/profile/EditProfileModal';
 import { Button } from '@/components/ui/button';
-import { Settings, MapPin, Calendar, Edit } from 'lucide-react';
+import { Settings, MapPin, Calendar, Edit, UserPlus, UserMinus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
+import { useFollow } from '@/hooks/useFollow';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -18,6 +20,8 @@ export default function Profile() {
   
   const isOwnProfile = !userId || userId === user?.id;
   const targetUserId = userId || user?.id;
+  
+  const { isFollowing, loading: followLoading, toggleFollow, canFollow } = useFollow(targetUserId);
 
   const fetchProfile = async () => {
     if (!targetUserId) return;
@@ -45,7 +49,7 @@ export default function Profile() {
         .from('posts')
         .select(`
           *,
-          profiles:user_id (
+          profiles!posts_user_id_fkey (
             user_id,
             full_name,
             username,
@@ -129,17 +133,38 @@ export default function Profile() {
                     </div>
                   </div>
                   
-                  {isOwnProfile && (
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
+                  <div className="flex items-center gap-2">
+                    {isOwnProfile ? (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Profile
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <Settings className="w-4 h-4" />
+                        </Button>
+                      </>
+                    ) : canFollow ? (
+                      <Button 
+                        onClick={toggleFollow} 
+                        disabled={followLoading}
+                        variant={isFollowing ? "outline" : "default"}
+                        size="sm"
+                      >
+                        {isFollowing ? (
+                          <>
+                            <UserMinus className="w-4 h-4 mr-2" />
+                            Unfollow
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Follow
+                          </>
+                        )}
                       </Button>
-                      <Button variant="ghost" size="icon">
-                        <Settings className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
                 
                 <div className="mt-4">
@@ -155,11 +180,11 @@ export default function Profile() {
                     <p className="text-sm text-muted-foreground">Posts</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-foreground">0</p>
+                    <p className="text-xl font-bold text-foreground">{profile?.followers_count || 0}</p>
                     <p className="text-sm text-muted-foreground">Followers</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-foreground">0</p>
+                    <p className="text-xl font-bold text-foreground">{profile?.following_count || 0}</p>
                     <p className="text-sm text-muted-foreground">Following</p>
                   </div>
                 </div>
