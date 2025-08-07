@@ -1,12 +1,16 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useLikes } from '@/hooks/useLikes';
+import { useComments } from '@/hooks/useComments';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface PostCardProps {
   post: {
-    id: number;
+    id: string;
     user: {
       name: string;
       avatar: string;
@@ -14,83 +18,156 @@ interface PostCardProps {
     };
     content: string;
     image?: string;
-    likes: number;
-    comments: number;
     timestamp: string;
   };
 }
 
 export default function PostCard({ post }: PostCardProps) {
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { user } = useAuth();
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  
+  const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
+  const { comments, commentsCount, addComment, submitting } = useComments(post.id);
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    
+    const success = await addComment(newComment);
+    if (success) {
+      setNewComment('');
+    }
+  };
 
   return (
-    <article className="bg-card border border-border rounded-2xl p-6 animate-fade-in">
+    <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
       {/* Post Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
             <span className="text-sm font-bold text-white">{post.user.avatar}</span>
           </div>
           <div>
             <p className="font-semibold text-foreground">{post.user.name}</p>
-            <p className="text-sm text-muted-foreground">{post.user.university} • {post.timestamp}</p>
+            <p className="text-sm text-muted-foreground">{post.user.university}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
-          <MoreHorizontal className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{post.timestamp}</span>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Post Content */}
-      <div className="mb-4">
-        <p className="text-foreground leading-relaxed mb-3">{post.content}</p>
+      <div className="space-y-3">
+        <p className="text-foreground leading-relaxed">{post.content}</p>
         {post.image && (
           <div className="rounded-xl overflow-hidden">
             <img 
               src={post.image} 
-              alt="Post content"
+              alt="Post content" 
               className="w-full h-auto object-cover"
             />
           </div>
         )}
       </div>
 
-      {/* Post Actions */}
-      <div className="flex items-center justify-between pt-3 border-t border-border">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+      {/* Actions */}
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center gap-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleLike}
+            disabled={likesLoading}
             className={cn(
-              'text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2',
-              liked && 'text-red-500 hover:text-red-600'
+              "flex items-center gap-2 hover:bg-muted/50",
+              isLiked && "text-red-500 hover:text-red-600"
             )}
-            onClick={() => setLiked(!liked)}
           >
-            <Heart className={cn('w-5 h-5', liked && 'fill-current')} />
-            <span>{liked ? post.likes + 1 : post.likes}</span>
+            <Heart className={cn("w-5 h-5", isLiked && "fill-current")} />
+            <span className="font-medium">{likesCount}</span>
           </Button>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2">
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowComments(!showComments)}
+            className="flex items-center gap-2 hover:bg-muted/50"
+          >
             <MessageCircle className="w-5 h-5" />
-            <span>{post.comments}</span>
+            <span className="font-medium">{commentsCount}</span>
           </Button>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
+          
+          <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-muted/50">
             <Share className="w-5 h-5" />
+            <span className="font-medium">Share</span>
           </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-            saved && 'text-primary hover:text-primary/80'
-          )}
-          onClick={() => setSaved(!saved)}
-        >
-          <Bookmark className={cn('w-5 h-5', saved && 'fill-current')} />
-        </Button>
       </div>
-    </article>
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="space-y-4 pt-4 border-t border-border">
+          {/* Add Comment */}
+          {user && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-bold text-white">
+                  {user.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="Write a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1 bg-muted/50 border-muted"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !submitting) {
+                      handleAddComment();
+                    }
+                  }}
+                  disabled={submitting}
+                />
+                <Button
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim() || submitting}
+                  size="sm"
+                >
+                  {submitting ? 'Adding...' : 'Comment'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Comments List */}
+          <div className="space-y-3">
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-white">
+                    {comment.profiles?.full_name?.charAt(0) || comment.profiles?.username?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <div className="flex-1 bg-muted/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {comment.profiles?.full_name || comment.profiles?.username || 'Unknown User'}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

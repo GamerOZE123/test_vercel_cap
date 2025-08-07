@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import PostCard from '@/components/post/PostCard';
 import EditProfileModal from '@/components/profile/EditProfileModal';
 import { Button } from '@/components/ui/button';
-import { Settings, MapPin, Calendar, Link as LinkIcon, Edit } from 'lucide-react';
+import { Settings, MapPin, Calendar, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
@@ -41,6 +40,7 @@ export default function Profile() {
     if (!targetUserId) return;
     
     try {
+      console.log('Fetching posts for user:', targetUserId);
       const { data, error } = await supabase
         .from('posts')
         .select(`
@@ -58,6 +58,8 @@ export default function Profile() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+      
+      console.log('Fetched user posts:', data);
       setPosts(data || []);
     } catch (error) {
       console.error('Error fetching user posts:', error);
@@ -182,8 +184,6 @@ export default function Profile() {
                 },
                 content: post.content || '',
                 image: post.image_url,
-                likes: post.likes_count || 0,
-                comments: post.comments_count || 0,
                 timestamp: new Date(post.created_at).toLocaleDateString()
               };
               

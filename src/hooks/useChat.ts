@@ -81,19 +81,6 @@ export const useChat = () => {
     try {
       console.log('Sending message:', { conversationId, content, userId: user.id });
       
-      // First, ensure the conversation exists and user is a participant
-      const { data: participantCheck, error: participantError } = await supabase
-        .from('conversation_participants')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .eq('user_id', user.id)
-        .single();
-      
-      if (participantError || !participantCheck) {
-        console.error('User is not a participant in this conversation:', participantError);
-        return { success: false, error: 'Not a participant in conversation' };
-      }
-
       const { data, error } = await supabase
         .from('messages')
         .insert({
