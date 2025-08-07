@@ -75,14 +75,14 @@ export default function Chat() {
 
   return (
     <Layout>
-      <div className="h-[calc(100vh-8rem)] flex bg-card rounded-2xl overflow-hidden">
+      <div className="h-[calc(100vh-8rem)] flex bg-card rounded-2xl overflow-hidden border border-border">
         {/* Chat List */}
-        <div className="w-1/3 border-r border-border flex flex-col">
+        <div className="w-1/3 border-r border-border flex flex-col bg-card">
           {/* Header */}
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-foreground">Messages</h2>
-              <Button variant="ghost" size="icon" className="btn-ghost">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
                 <Plus className="w-5 h-5" />
               </Button>
             </div>
@@ -90,7 +90,7 @@ export default function Chat() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input 
                 placeholder="Search conversations..." 
-                className="pl-10 bg-surface border-border"
+                className="pl-10 bg-muted/50 border-muted text-foreground placeholder:text-muted-foreground focus:border-primary"
               />
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function Chat() {
               <div
                 key={chat.id}
                 className={`p-4 border-b border-border cursor-pointer transition-colors ${
-                  selectedChat.id === chat.id ? 'bg-surface' : 'hover:bg-surface/50'
+                  selectedChat.id === chat.id ? 'bg-muted/50' : 'hover:bg-muted/30'
                 }`}
                 onClick={() => setSelectedChat(chat)}
               >
@@ -111,7 +111,7 @@ export default function Chat() {
                       <span className="text-sm font-bold text-white">{chat.avatar}</span>
                     </div>
                     {chat.online && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success border-2 border-card rounded-full"></div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full"></div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -133,10 +133,10 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Chat Messages */}
-        <div className="flex-1 flex flex-col">
+        {/* Chat Messages - Now takes full width */}
+        <div className="flex-1 flex flex-col bg-background">
           {/* Chat Header */}
-          <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="p-4 border-b border-border flex items-center justify-between bg-card">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
                 <span className="text-sm font-bold text-white">{selectedChat.avatar}</span>
@@ -146,13 +146,13 @@ export default function Chat() {
                 <p className="text-sm text-muted-foreground">{selectedChat.university}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="btn-ghost">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
               <MoreHorizontal className="w-5 h-5" />
             </Button>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -161,7 +161,7 @@ export default function Chat() {
                 <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
                   message.isMe 
                     ? 'bg-primary text-primary-foreground' 
-                    : 'bg-surface text-foreground'
+                    : 'bg-muted text-foreground'
                 }`}>
                   <p className="text-sm">{message.content}</p>
                   <p className={`text-xs mt-1 ${
@@ -175,13 +175,13 @@ export default function Chat() {
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border bg-card">
             <div className="flex items-center gap-3">
               <Input
                 placeholder="Type a message..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 bg-surface border-border"
+                className="flex-1 bg-muted/50 border-muted text-foreground placeholder:text-muted-foreground focus:border-primary"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     // Handle send message
@@ -189,7 +189,7 @@ export default function Chat() {
                   }
                 }}
               />
-              <Button className="btn-primary">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Send className="w-4 h-4" />
               </Button>
             </div>

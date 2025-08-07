@@ -10,10 +10,10 @@ const mockPosts = [
     user: {
       name: 'Sarah Johnson',
       avatar: 'SJ',
-      university: 'Computer Science, MIT'
+      university: 'Computer Science • MIT'
     },
-    content: 'Just finished my machine learning project! The model achieved 94% accuracy on the test dataset. Really excited about the potential applications in healthcare. 🤖',
-    image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500&h=300&fit=crop',
+    content: 'Just finished my machine learning project! The results were better than expected. Can\'t wait to present it next week 🚀',
+    image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500&h=300&fit=crop&crop=center',
     likes: 24,
     comments: 8,
     timestamp: '2h'
@@ -23,11 +23,11 @@ const mockPosts = [
     user: {
       name: 'Mike Chen',
       avatar: 'MC',
-      university: 'Engineering, Stanford'
+      university: 'Engineering • Stanford'
     },
-    content: 'Our robotics team won first place at the national competition! Months of hard work finally paid off. Special thanks to my teammates who made this possible 🏆',
-    likes: 56,
-    comments: 15,
+    content: 'Study group meeting tomorrow at 3 PM in the library. We\'ll be covering chapters 5-7. Bring your notes!',
+    likes: 12,
+    comments: 5,
     timestamp: '4h'
   },
   {
@@ -35,32 +35,20 @@ const mockPosts = [
     user: {
       name: 'Emily Davis',
       avatar: 'ED',
-      university: 'Business, Harvard'
+      university: 'Business • Harvard'
     },
-    content: 'Interesting discussion in today\'s entrepreneurship class about the future of sustainable business models. The intersection of profit and environmental responsibility is fascinating.',
-    likes: 18,
-    comments: 6,
-    timestamp: '6h'
-  },
-  {
-    id: 4,
-    user: {
-      name: 'Alex Rivera',
-      avatar: 'AR',
-      university: 'Design, RISD'
-    },
-    content: 'Working on a new UI design for our mobile app. The dark theme is coming together nicely! What do you think about minimalist interfaces in educational apps?',
-    image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500&h=300&fit=crop',
+    content: 'Amazing guest lecture today about sustainable business practices. Really opened my eyes to new possibilities in the corporate world.',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=300&fit=crop&crop=center',
     likes: 31,
     comments: 12,
-    timestamp: '8h'
+    timestamp: '6h'
   }
 ];
 
 export default function Home() {
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="max-w-2xl mx-auto">
         <CreatePost />
         <div className="space-y-6">
           {mockPosts.map((post) => (

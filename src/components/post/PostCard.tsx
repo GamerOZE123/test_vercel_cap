@@ -25,7 +25,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [saved, setSaved] = useState(false);
 
   return (
-    <article className="post-card animate-fade-in">
+    <article className="bg-card border border-border rounded-2xl p-6 animate-fade-in">
       {/* Post Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -37,7 +37,7 @@ export default function PostCard({ post }: PostCardProps) {
             <p className="text-sm text-muted-foreground">{post.user.university} • {post.timestamp}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="btn-ghost">
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
           <MoreHorizontal className="w-5 h-5" />
         </Button>
       </div>
@@ -63,7 +63,7 @@ export default function PostCard({ post }: PostCardProps) {
             variant="ghost" 
             size="sm" 
             className={cn(
-              'btn-ghost gap-2',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2',
               liked && 'text-red-500 hover:text-red-600'
             )}
             onClick={() => setLiked(!liked)}
@@ -71,11 +71,11 @@ export default function PostCard({ post }: PostCardProps) {
             <Heart className={cn('w-5 h-5', liked && 'fill-current')} />
             <span>{liked ? post.likes + 1 : post.likes}</span>
           </Button>
-          <Button variant="ghost" size="sm" className="btn-ghost gap-2">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2">
             <MessageCircle className="w-5 h-5" />
             <span>{post.comments}</span>
           </Button>
-          <Button variant="ghost" size="sm" className="btn-ghost">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
             <Share className="w-5 h-5" />
           </Button>
         </div>
@@ -83,7 +83,7 @@ export default function PostCard({ post }: PostCardProps) {
           variant="ghost" 
           size="sm" 
           className={cn(
-            'btn-ghost',
+            'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             saved && 'text-primary hover:text-primary/80'
           )}
           onClick={() => setSaved(!saved)}

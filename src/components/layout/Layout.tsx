@@ -2,7 +2,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import UsersSidebar from './UsersSidebar';
 import MobileNavigation from './MobileNavigation';
 
 interface LayoutProps {
@@ -12,17 +11,21 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background">
+      {/* Desktop Sidebar */}
       <Sidebar />
+      
+      {/* Header */}
       <Header />
-      <UsersSidebar />
-      <MobileNavigation />
       
       {/* Main Content */}
-      <main className="pt-16 md:pl-64 xl:pr-80 pb-16 md:pb-0">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+      <main className="md:ml-64 pt-16 pb-20 md:pb-6">
+        <div className="container mx-auto px-4 py-6">
           {children}
         </div>
       </main>
+      
+      {/* Mobile Navigation */}
+      <MobileNavigation />
     </div>
   );
 }
