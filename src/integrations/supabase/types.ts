@@ -252,7 +252,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_or_create_conversation: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: string
+      }
+      get_user_conversations: {
+        Args: { target_user_id: string }
+        Returns: {
+          conversation_id: string
+          other_user_id: string
+          other_user_name: string
+          other_user_avatar: string
+          other_user_university: string
+          last_message: string
+          last_message_time: string
+          unread_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

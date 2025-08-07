@@ -1,16 +1,54 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useUsers } from '@/hooks/useUsers';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
+  const [query, setQuery] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const { users, loading, searchUsers } = useUsers();
+  const navigate = useNavigate();
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query) {
+        searchUsers(query);
+        setShowResults(true);
+      } else {
+        setShowResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query, searchUsers]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleUserClick = (user: any) => {
+    navigate(`/profile/${user.user_id}`);
+    setShowResults(false);
+    setQuery('');
+  };
+
   return (
     <header className="fixed top-0 right-0 left-0 md:left-64 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
       <div className="flex items-center justify-between px-4 py-3">
         {/* Mobile Logo */}
         <div className="flex items-center gap-3 md:hidden">
-          <div className="w-8 h-8 university-gradient rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
             <span className="text-sm font-bold text-white">U</span>
           </div>
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -19,25 +57,58 @@ export default function Header() {
         </div>
 
         {/* Desktop Search */}
-        <div className="hidden md:flex items-center flex-1 max-w-md">
+        <div className="hidden md:flex items-center flex-1 max-w-md relative" ref={searchRef}>
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input 
-              placeholder="Search universities, students..." 
-              className="pl-10 bg-surface border-border focus:border-primary"
+              placeholder="Search users..." 
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10 bg-muted/50 border-border focus:border-primary"
             />
           </div>
+          
+          {showResults && (
+            <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-lg mt-1 shadow-lg max-h-80 overflow-y-auto z-50">
+              {loading ? (
+                <div className="p-4 text-center text-muted-foreground">Searching...</div>
+              ) : users.length > 0 ? (
+                users.map((user) => (
+                  <div
+                    key={user.id}
+                    className="p-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleUserClick(user)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                        <span className="text-sm font-bold text-white">
+                          {user.full_name?.charAt(0) || user.username?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{user.full_name || user.username}</p>
+                        <p className="text-sm text-muted-foreground">{user.university || 'University'}</p>
+                        {user.major && <p className="text-xs text-muted-foreground">{user.major}</p>}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-muted-foreground">No users found</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-3">
           {/* Mobile Search */}
-          <Button variant="ghost" size="icon" className="btn-ghost md:hidden">
+          <Button variant="ghost" size="icon" className="md:hidden">
             <Search className="w-5 h-5" />
           </Button>
           
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="btn-ghost relative">
+          <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-5 h-5" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full flex items-center justify-center">
               <span className="w-1.5 h-1.5 bg-white rounded-full"></span>

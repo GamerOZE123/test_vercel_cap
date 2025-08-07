@@ -1,61 +1,123 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
-import CreatePost from '@/components/post/CreatePost';
 import PostCard from '@/components/post/PostCard';
-
-const mockPosts = [
-  {
-    id: 1,
-    user: {
-      name: 'Sarah Johnson',
-      avatar: 'SJ',
-      university: 'Computer Science • MIT'
-    },
-    content: 'Just finished my machine learning project! The results were better than expected. Can\'t wait to present it next week 🚀',
-    image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500&h=300&fit=crop&crop=center',
-    likes: 24,
-    comments: 8,
-    timestamp: '2h'
-  },
-  {
-    id: 2,
-    user: {
-      name: 'Mike Chen',
-      avatar: 'MC',
-      university: 'Engineering • Stanford'
-    },
-    content: 'Study group meeting tomorrow at 3 PM in the library. We\'ll be covering chapters 5-7. Bring your notes!',
-    likes: 12,
-    comments: 5,
-    timestamp: '4h'
-  },
-  {
-    id: 3,
-    user: {
-      name: 'Emily Davis',
-      avatar: 'ED',
-      university: 'Business • Harvard'
-    },
-    content: 'Amazing guest lecture today about sustainable business practices. Really opened my eyes to new possibilities in the corporate world.',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=300&fit=crop&crop=center',
-    likes: 31,
-    comments: 12,
-    timestamp: '6h'
-  }
-];
+import ImageUploadButton from '@/components/post/ImageUploadButton';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const fetchPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles:user_id (
+            user_id,
+            full_name,
+            username,
+            avatar_url,
+            university,
+            major
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setPosts(data || []);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    if (!user) return;
+    
+    setIsUploading(true);
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      
+      // For now, we'll create a post with a placeholder image URL
+      // In a real app, you'd upload to Supabase Storage first
+      const imageUrl = URL.createObjectURL(file);
+      
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          content: '', // Empty content for image-only posts
+          image_url: imageUrl // In production, this would be the actual uploaded URL
+        });
+      
+      if (error) throw error;
+      
+      // Refresh posts
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error uploading image:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
-        <CreatePost />
         <div className="space-y-6">
-          {mockPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
+          {posts.length > 0 ? (
+            posts.map((post) => {
+              // Transform the data to match PostCard expectations
+              const transformedPost = {
+                id: post.id,
+                user: {
+                  name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
+                  avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
+                  university: post.profiles?.university || post.profiles?.major || 'University'
+                },
+                content: post.content || '',
+                image: post.image_url,
+                likes: post.likes_count || 0,
+                comments: post.comments_count || 0,
+                timestamp: new Date(post.created_at).toLocaleDateString()
+              };
+              
+              return <PostCard key={post.id} post={transformedPost} />;
+            })
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No posts yet. Start by uploading an image!</p>
+            </div>
+          )}
         </div>
       </div>
+      
+      <ImageUploadButton onImageSelect={handleImageUpload} isUploading={isUploading} />
     </Layout>
   );
 }
