@@ -1,8 +1,10 @@
 
 import React from 'react';
-import { Home, MessageCircle, User, GraduationCap } from 'lucide-react';
+import { Home, MessageCircle, User, GraduationCap, LogOut } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -13,6 +15,15 @@ const navigation = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border hidden md:block">
@@ -56,13 +67,25 @@ export default function Sidebar() {
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition-colors cursor-pointer">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-              <span className="text-sm font-bold text-white">JD</span>
+              <span className="text-sm font-bold text-white">
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">John Doe</p>
-              <p className="text-xs text-muted-foreground truncate">Computer Science</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {user?.email || 'User'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">Student</p>
             </div>
           </div>
+          <Button 
+            onClick={handleSignOut}
+            variant="ghost" 
+            className="w-full mt-2 justify-start text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </div>
     </aside>

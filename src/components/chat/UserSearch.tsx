@@ -16,18 +16,29 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
   const { users, loading, searchUsers } = useUsers();
   const navigate = useNavigate();
   const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query) {
-        searchUsers(query);
+    // Clear previous timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Set new timeout
+    debounceRef.current = setTimeout(() => {
+      if (query.trim()) {
+        searchUsers(query.trim());
         setShowResults(true);
       } else {
         setShowResults(false);
       }
-    }, 300);
+    }, 500); // Increased debounce time to reduce glitching
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, [query, searchUsers]);
 
   useEffect(() => {
@@ -41,13 +52,16 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUserClick = (user: any) => {
+  const handleUserClick = (user: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/profile/${user.user_id}`);
     setShowResults(false);
     setQuery('');
   };
 
-  const handleStartChat = (userId: string) => {
-    onStartChat(userId);
+  const handleStartChat = async (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onStartChat(userId);
     setShowResults(false);
     setQuery('');
   };
@@ -67,7 +81,10 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
       {showResults && (
         <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-lg mt-1 shadow-lg z-50 max-h-80 overflow-y-auto">
           {loading ? (
-            <div className="p-4 text-center text-muted-foreground">Searching...</div>
+            <div className="p-4 text-center text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              Searching...
+            </div>
           ) : users.length > 0 ? (
             users.map((user) => (
               <div
@@ -77,7 +94,7 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
                 <div className="flex items-center justify-between">
                   <div 
                     className="flex items-center gap-3 cursor-pointer flex-1"
-                    onClick={() => navigate(`/profile/${user.user_id}`)}
+                    onClick={(e) => handleUserClick(user, e)}
                   >
                     <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
                       <span className="text-sm font-bold text-white">
@@ -93,17 +110,17 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleStartChat(user.user_id)}
-                    className="ml-2"
+                    onClick={(e) => handleStartChat(user.user_id, e)}
+                    className="ml-2 hover:bg-primary/10"
                   >
                     <MessageCircle className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             ))
-          ) : (
+          ) : query.trim() ? (
             <div className="p-4 text-center text-muted-foreground">No users found</div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

@@ -12,18 +12,29 @@ export default function Header() {
   const { users, loading, searchUsers } = useUsers();
   const navigate = useNavigate();
   const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query) {
-        searchUsers(query);
+    // Clear previous timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Set new timeout
+    debounceRef.current = setTimeout(() => {
+      if (query.trim()) {
+        searchUsers(query.trim());
         setShowResults(true);
       } else {
         setShowResults(false);
       }
-    }, 300);
+    }, 500); // Increased debounce time
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, [query, searchUsers]);
 
   useEffect(() => {
@@ -71,7 +82,10 @@ export default function Header() {
           {showResults && (
             <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-lg mt-1 shadow-lg max-h-80 overflow-y-auto z-50">
               {loading ? (
-                <div className="p-4 text-center text-muted-foreground">Searching...</div>
+                <div className="p-4 text-center text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  Searching...
+                </div>
               ) : users.length > 0 ? (
                 users.map((user) => (
                   <div
@@ -93,9 +107,9 @@ export default function Header() {
                     </div>
                   </div>
                 ))
-              ) : (
+              ) : query.trim() ? (
                 <div className="p-4 text-center text-muted-foreground">No users found</div>
-              )}
+              ) : null}
             </div>
           )}
         </div>

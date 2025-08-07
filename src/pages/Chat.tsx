@@ -6,11 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Send, MoreHorizontal } from 'lucide-react';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUsers } from '@/hooks/useUsers';
 import UserSearch from '@/components/chat/UserSearch';
+import { toast } from 'sonner';
 
 export default function Chat() {
   const { user } = useAuth();
-  const { conversations, currentMessages, loading, fetchMessages, sendMessage, createConversation } = useChat();
+  const { getUserById } = useUsers();
+  const { conversations, currentMessages, loading, fetchMessages, sendMessage, createConversation, refreshConversations } = useChat();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
 
@@ -24,16 +27,47 @@ export default function Chat() {
     
     await sendMessage(selectedChat.conversation_id, newMessage);
     setNewMessage('');
+    // Refresh conversations to update last message
+    refreshConversations();
   };
 
   const handleStartChat = async (userId: string) => {
-    const conversationId = await createConversation(userId);
-    if (conversationId) {
-      // Find the new conversation and select it
-      const newConversation = conversations.find(c => c.conversation_id === conversationId);
-      if (newConversation) {
-        handleChatSelect(newConversation);
+    try {
+      // Get user details for the chat header
+      const otherUser = await getUserById(userId);
+      if (!otherUser) {
+        toast.error('User not found');
+        return;
       }
+
+      // Create or get conversation
+      const conversationId = await createConversation(userId);
+      if (conversationId) {
+        // Create a temporary chat object for immediate UI update
+        const tempChat = {
+          conversation_id: conversationId,
+          other_user_id: userId,
+          other_user_name: otherUser.full_name || otherUser.username,
+          other_user_avatar: otherUser.avatar_url,
+          other_user_university: otherUser.university,
+          last_message: '',
+          last_message_time: new Date().toISOString(),
+          unread_count: 0
+        };
+
+        setSelectedChat(tempChat);
+        fetchMessages(conversationId);
+        
+        // Refresh conversations list to get the actual conversation
+        setTimeout(() => {
+          refreshConversations();
+        }, 1000);
+        
+        toast.success('Chat started!');
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      toast.error('Failed to start chat');
     }
   };
 
