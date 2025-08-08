@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
+import MobileLayout from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, MoreHorizontal, ArrowLeft } from 'lucide-react';
@@ -177,100 +179,102 @@ export default function Chat() {
   // Mobile view: show either chat list or selected conversation
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background">
+      <>
         {!selectedChat ? (
-          // Chat List View (Mobile) - Full screen without Layout
-          <div className="flex flex-col h-screen bg-card">
-            <div className="p-4 border-b border-border">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-foreground">Messages</h2>
+          // Chat List View (Mobile) - With header and navigation
+          <MobileLayout showHeader={true} showNavigation={true}>
+            <div className="flex flex-col h-[calc(100vh-10rem)] bg-card">
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-foreground">Messages</h2>
+                </div>
+                <UserSearch onStartChat={handleStartChat} />
               </div>
-              <UserSearch onStartChat={handleStartChat} />
-            </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {/* Recent Chats Section */}
-              {recentChats.length > 0 && (
-                <div className="mb-4">
-                  <div className="px-4 py-2 bg-muted/30">
-                    <h3 className="text-sm font-semibold text-muted-foreground">Recent</h3>
-                  </div>
-                  {recentChats.map((recentChat) => (
-                    <div
-                      key={recentChat.other_user_id}
-                      className="p-4 border-b border-border cursor-pointer transition-colors hover:bg-muted/30"
-                      onClick={() => handleRecentChatSelect(recentChat)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-white">
-                            {recentChat.other_user_name?.charAt(0) || 'U'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold text-foreground truncate">{recentChat.other_user_name || 'Unknown User'}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(recentChat.last_interacted_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{recentChat.other_user_university || 'University'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Active Conversations Section */}
-              {loading ? (
-                <div className="p-4 text-center">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                </div>
-              ) : conversations.length > 0 ? (
-                <div>
-                  {conversations.length > 0 && recentChats.length > 0 && (
+              <div className="flex-1 overflow-y-auto">
+                {/* Recent Chats Section */}
+                {recentChats.length > 0 && (
+                  <div className="mb-4">
                     <div className="px-4 py-2 bg-muted/30">
-                      <h3 className="text-sm font-semibold text-muted-foreground">All Conversations</h3>
+                      <h3 className="text-sm font-semibold text-muted-foreground">Recent</h3>
                     </div>
-                  )}
-                  {conversations.map((chat) => (
-                    <div
-                      key={chat.conversation_id}
-                      className="p-4 border-b border-border cursor-pointer transition-colors hover:bg-muted/30"
-                      onClick={() => handleChatSelect(chat)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-white">
-                            {chat.other_user_name?.charAt(0) || 'U'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold text-foreground truncate">{chat.other_user_name || 'Unknown User'}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {chat.last_message_time ? new Date(chat.last_message_time).toLocaleDateString() : ''}
+                    {recentChats.map((recentChat) => (
+                      <div
+                        key={recentChat.other_user_id}
+                        className="p-4 border-b border-border cursor-pointer transition-colors hover:bg-muted/30"
+                        onClick={() => handleRecentChatSelect(recentChat)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-white">
+                              {recentChat.other_user_name?.charAt(0) || 'U'}
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">{chat.other_user_university || 'University'}</p>
-                          <p className="text-sm text-muted-foreground truncate mt-1">
-                            {chat.last_message || 'Start a conversation'}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-foreground truncate">{recentChat.other_user_name || 'Unknown User'}</p>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(recentChat.last_interacted_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">{recentChat.other_user_university || 'University'}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-muted-foreground">
-                  Search for users to start a conversation
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+
+                {/* Active Conversations Section */}
+                {loading ? (
+                  <div className="p-4 text-center">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  </div>
+                ) : conversations.length > 0 ? (
+                  <div>
+                    {conversations.length > 0 && recentChats.length > 0 && (
+                      <div className="px-4 py-2 bg-muted/30">
+                        <h3 className="text-sm font-semibold text-muted-foreground">All Conversations</h3>
+                      </div>
+                    )}
+                    {conversations.map((chat) => (
+                      <div
+                        key={chat.conversation_id}
+                        className="p-4 border-b border-border cursor-pointer transition-colors hover:bg-muted/30"
+                        onClick={() => handleChatSelect(chat)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-white">
+                              {chat.other_user_name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-foreground truncate">{chat.other_user_name || 'Unknown User'}</p>
+                              <span className="text-xs text-muted-foreground">
+                                {chat.last_message_time ? new Date(chat.last_message_time).toLocaleDateString() : ''}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">{chat.other_user_university || 'University'}</p>
+                            <p className="text-sm text-muted-foreground truncate mt-1">
+                              {chat.last_message || 'Start a conversation'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Search for users to start a conversation
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </MobileLayout>
         ) : (
-          // Chat Messages View (Mobile) - Full screen without Layout
+          // Chat Messages View (Mobile) - Full screen without header/navigation
           <div className="flex flex-col h-screen bg-background">
             <MobileChatHeader 
               userName={selectedChat.other_user_name}
@@ -336,7 +340,7 @@ export default function Chat() {
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 
