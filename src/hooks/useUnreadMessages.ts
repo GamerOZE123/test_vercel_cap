@@ -11,16 +11,33 @@ export const useUnreadMessages = () => {
     if (!user) return;
 
     try {
-      const { data } = await supabase
-        .from('unread_messages')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+      // Since we don't have an unread_messages table, we'll simulate this
+      // by counting recent messages in conversations where the user is not the sender
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          messages!inner(
+            id,
+            sender_id,
+            created_at
+          )
+        `);
 
-      if (data) {
-        const counts = data.reduce((acc, item) => {
-          acc[item.conversation_id] = (acc[item.conversation_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+      if (conversations) {
+        const counts: Record<string, number> = {};
+        
+        conversations.forEach(conversation => {
+          // Count messages from others in the last hour as "unread"
+          const recentMessages = conversation.messages?.filter(msg => 
+            msg.sender_id !== user.id &&
+            new Date(msg.created_at) > new Date(Date.now() - 60 * 60 * 1000)
+          ) || [];
+          
+          if (recentMessages.length > 0) {
+            counts[conversation.id] = recentMessages.length;
+          }
+        });
         
         setUnreadCounts(counts);
       }
@@ -32,27 +49,18 @@ export const useUnreadMessages = () => {
   const markConversationAsRead = async (conversationId: string) => {
     if (!user) return;
 
-    try {
-      await supabase
-        .from('unread_messages')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('conversation_id', conversationId);
-
-      setUnreadCounts(prev => ({
-        ...prev,
-        [conversationId]: 0
-      }));
-    } catch (error) {
-      console.error('Error marking conversation as read:', error);
-    }
+    // For now, just clear the local count
+    setUnreadCounts(prev => ({
+      ...prev,
+      [conversationId]: 0
+    }));
   };
 
   useEffect(() => {
     if (user) {
       fetchUnreadCounts();
 
-      // Set up real-time subscription for unread messages
+      // Set up real-time subscription for messages
       const channel = supabase
         .channel('unread_messages')
         .on(
@@ -60,11 +68,10 @@ export const useUnreadMessages = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'unread_messages',
-            filter: `user_id=eq.${user.id}`
+            table: 'messages'
           },
           () => {
-            fetchUnreadCounts(); // Refetch counts when unread messages change
+            fetchUnreadCounts(); // Refetch counts when messages change
           }
         )
         .subscribe();
