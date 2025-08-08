@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -77,14 +76,13 @@ export default function Chat() {
     await addRecentChat(conversation.other_user_id);
   };
 
-  const handleStartChat = async (userId: string) => {
+  const handleUserSelect = async (selectedUser: any) => {
     try {
-      const conversationId = await createConversation(userId);
+      const conversationId = await createConversation(selectedUser.user_id);
       if (conversationId) {
         setSelectedConversationId(conversationId);
-        const userData = await getUserById(userId);
-        setSelectedUser(userData);
-        await addRecentChat(userId);
+        setSelectedUser(selectedUser);
+        await addRecentChat(selectedUser.user_id);
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
@@ -126,7 +124,7 @@ export default function Chat() {
         <div className="w-1/3 border-r border-border bg-card">
           <div className="p-4 border-b border-border">
             <h2 className="text-lg font-semibold mb-4">Messages</h2>
-            <UserSearch onStartChat={handleStartChat} />
+            <UserSearch onUserSelect={handleUserSelect} />
           </div>
           
           <div className="overflow-y-auto">
@@ -224,7 +222,7 @@ export default function Chat() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             {isMobile ? (
               <div className="text-center p-8">
-                <UserSearch onStartChat={handleStartChat} />
+                <UserSearch onUserSelect={handleUserSelect} />
                 <div className="mt-8 space-y-4">
                   {conversations.map((conversation) => (
                     <div

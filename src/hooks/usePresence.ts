@@ -16,33 +16,27 @@ export const usePresence = () => {
   useEffect(() => {
     if (!user) return;
 
-    // For now, we'll use a simple approach with the profiles table
-    // Update user's last seen timestamp
+    // Update user's presence to online
     const updatePresence = async () => {
       await supabase
-        .from('profiles')
-        .update({ 
+        .from('user_presence')
+        .upsert({
+          user_id: user.id,
+          is_online: true,
+          last_seen: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+        });
     };
 
-    // Fetch all users and their last activity
+    // Fetch initial presence data
     const fetchPresence = async () => {
       const { data } = await supabase
-        .from('profiles')
-        .select('user_id, updated_at');
+        .from('user_presence')
+        .select('*');
       
       if (data) {
-        const presenceMap = data.reduce((acc, profile) => {
-          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-          const lastSeen = new Date(profile.updated_at);
-          
-          acc[profile.user_id] = {
-            user_id: profile.user_id,
-            is_online: lastSeen > fiveMinutesAgo,
-            last_seen: profile.updated_at
-          };
+        const presenceMap = data.reduce((acc, item) => {
+          acc[item.user_id] = item;
           return acc;
         }, {} as Record<string, UserPresence>);
         setPresenceData(presenceMap);
@@ -52,21 +46,63 @@ export const usePresence = () => {
     updatePresence();
     fetchPresence();
 
-    // Update presence periodically
-    const interval = setInterval(updatePresence, 30000);
+    // Set up real-time subscription for presence updates
+    const channel = supabase
+      .channel('user_presence')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_presence'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setPresenceData(prev => ({
+              ...prev,
+              [payload.new.user_id]: payload.new as UserPresence
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    // Update presence periodically and on page visibility change
+    const interval = setInterval(updatePresence, 30000); // Update every 30 seconds
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         updatePresence();
-        fetchPresence();
+      } else {
+        // Mark as offline when page is hidden
+        supabase
+          .from('user_presence')
+          .upsert({
+            user_id: user.id,
+            is_online: false,
+            last_seen: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Cleanup
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(channel);
+      
+      // Mark as offline on cleanup
+      supabase
+        .from('user_presence')
+        .upsert({
+          user_id: user.id,
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
     };
   }, [user]);
 
@@ -74,6 +110,7 @@ export const usePresence = () => {
     const presence = presenceData[userId];
     if (!presence) return false;
     
+    // Consider user online if they were active in the last 5 minutes
     const lastSeen = new Date(presence.last_seen);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
