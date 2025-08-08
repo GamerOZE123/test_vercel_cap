@@ -321,6 +321,45 @@ export type Database = {
         }
         Relationships: []
       }
+      recent_chats: {
+        Row: {
+          created_at: string
+          id: string
+          last_interacted_at: string
+          other_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_interacted_at?: string
+          other_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_interacted_at?: string
+          other_user_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recent_chats_other_user_id_fkey"
+            columns: ["other_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "recent_chats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -342,6 +381,16 @@ export type Database = {
         Args: { user1_id: string; user2_id: string }
         Returns: string
       }
+      get_recent_chats: {
+        Args: { target_user_id: string }
+        Returns: {
+          other_user_id: string
+          other_user_name: string
+          other_user_avatar: string
+          other_user_university: string
+          last_interacted_at: string
+        }[]
+      }
       get_user_conversations: {
         Args: { target_user_id: string }
         Returns: {
@@ -354,6 +403,10 @@ export type Database = {
           last_message_time: string
           unread_count: number
         }[]
+      }
+      upsert_recent_chat: {
+        Args: { current_user_id: string; target_user_id: string }
+        Returns: undefined
       }
       user_in_conversation: {
         Args: { conv_id: string; check_user_id: string }
