@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 export const useFollow = (targetUserId?: string) => {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const checkFollowStatus = async () => {
@@ -27,6 +29,33 @@ export const useFollow = (targetUserId?: string) => {
     }
   };
 
+  const fetchFollowCounts = async () => {
+    if (!targetUserId) return;
+
+    try {
+      // Get followers count
+      const { count: followers, error: followersError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', targetUserId);
+
+      if (followersError) throw followersError;
+
+      // Get following count
+      const { count: following, error: followingError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', targetUserId);
+
+      if (followingError) throw followingError;
+
+      setFollowersCount(followers || 0);
+      setFollowingCount(following || 0);
+    } catch (error) {
+      console.error('Error fetching follow counts:', error);
+    }
+  };
+
   const toggleFollow = async () => {
     if (!user || !targetUserId || user.id === targetUserId || loading) return;
 
@@ -42,6 +71,7 @@ export const useFollow = (targetUserId?: string) => {
 
         if (error) throw error;
         setIsFollowing(false);
+        setFollowersCount(prev => Math.max(0, prev - 1));
         toast.success('Unfollowed successfully');
       } else {
         // Follow
@@ -54,6 +84,7 @@ export const useFollow = (targetUserId?: string) => {
 
         if (error) throw error;
         setIsFollowing(true);
+        setFollowersCount(prev => prev + 1);
         toast.success('Following successfully');
       }
     } catch (error) {
@@ -65,11 +96,16 @@ export const useFollow = (targetUserId?: string) => {
   };
 
   useEffect(() => {
-    checkFollowStatus();
+    if (targetUserId) {
+      checkFollowStatus();
+      fetchFollowCounts();
+    }
   }, [user, targetUserId]);
 
   return {
     isFollowing,
+    followersCount,
+    followingCount,
     loading,
     toggleFollow,
     canFollow: user && targetUserId && user.id !== targetUserId
