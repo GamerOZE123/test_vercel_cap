@@ -1,8 +1,14 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useLikes } from '@/hooks/useLikes';
 import { useComments } from '@/hooks/useComments';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +17,7 @@ import { cn } from '@/lib/utils';
 interface PostCardProps {
   post: {
     id: string;
+    user_id?: string;
     user: {
       name: string;
       avatar: string;
@@ -20,9 +27,12 @@ interface PostCardProps {
     image?: string;
     timestamp: string;
   };
+  showEditOption?: boolean;
+  onEdit?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, showEditOption = false, onEdit, onDelete }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -39,6 +49,8 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const isOwnPost = user?.id === post.user_id;
+
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
       {/* Post Header */}
@@ -54,9 +66,32 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{post.timestamp}</span>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
+          {(showEditOption && isOwnPost) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit?.(post.id)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Post
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onDelete?.(post.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash className="w-4 h-4 mr-2" />
+                  Delete Post
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 

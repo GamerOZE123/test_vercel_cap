@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
 import { useFollow } from '@/hooks/useFollow';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -77,6 +78,28 @@ export default function Profile() {
 
   const handleProfileUpdate = () => {
     fetchProfile();
+  };
+
+  const handleEditPost = (postId: string) => {
+    toast.info('Edit post functionality will be implemented soon!');
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('user_id', user?.id);
+      
+      if (error) throw error;
+      
+      setPosts(posts.filter(post => post.id !== postId));
+      toast.success('Post deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      toast.error('Failed to delete post');
+    }
   };
 
   useEffect(() => {
@@ -220,6 +243,7 @@ export default function Profile() {
           posts.map((post) => {
             const transformedPost = {
               id: post.id,
+              user_id: post.user_id,
               user: {
                 name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
                 avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
@@ -230,7 +254,15 @@ export default function Profile() {
               timestamp: new Date(post.created_at).toLocaleDateString()
             };
             
-            return <PostCard key={post.id} post={transformedPost} />;
+            return (
+              <PostCard 
+                key={post.id} 
+                post={transformedPost}
+                showEditOption={isOwnProfile}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+              />
+            );
           })
         ) : (
           <div className="text-center py-12">

@@ -1,15 +1,10 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, UserPlus } from 'lucide-react';
-
-const suggestedUsers = [
-  { id: 1, name: 'Sarah Johnson', university: 'Computer Science', avatar: 'SJ', mutual: 5 },
-  { id: 2, name: 'Mike Chen', university: 'Engineering', avatar: 'MC', mutual: 3 },
-  { id: 3, name: 'Emily Davis', university: 'Business', avatar: 'ED', mutual: 8 },
-  { id: 4, name: 'Alex Rivera', university: 'Design', avatar: 'AR', mutual: 2 },
-  { id: 5, name: 'Jordan Smith', university: 'Physics', avatar: 'JS', mutual: 6 },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const activeUsers = [
   { id: 1, name: 'Lisa Wang', avatar: 'LW', online: true },
@@ -19,6 +14,38 @@ const activeUsers = [
 ];
 
 export default function UsersSidebar() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSuggestedUsers();
+  }, [user]);
+
+  const fetchSuggestedUsers = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, university, major, avatar_url')
+        .neq('user_id', user.id)
+        .limit(5);
+      
+      if (error) throw error;
+      setSuggestedUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching suggested users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserClick = (userId: string) => {
+    navigate(`/profile/${userId}`);
+  };
+
   return (
     <aside className="hidden xl:block fixed top-16 right-0 w-80 h-[calc(100vh-4rem)] overflow-y-auto bg-card border-l border-border p-6">
       {/* Suggested for You */}
@@ -30,23 +57,38 @@ export default function UsersSidebar() {
           </Button>
         </div>
         <div className="space-y-3">
-          {suggestedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">{user.avatar}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.university}</p>
-                  <p className="text-xs text-muted-foreground">{user.mutual} mutual connections</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" className="btn-ghost">
-                <UserPlus className="w-3 h-3" />
-              </Button>
+          {loading ? (
+            <div className="text-center py-4">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
             </div>
-          ))}
+          ) : (
+            suggestedUsers.map((suggestedUser) => (
+              <div key={suggestedUser.user_id} className="flex items-center justify-between">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer flex-1"
+                  onClick={() => handleUserClick(suggestedUser.user_id)}
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                    <span className="text-sm font-bold text-white">
+                      {suggestedUser.full_name?.charAt(0) || suggestedUser.username?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {suggestedUser.full_name || suggestedUser.username}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {suggestedUser.university || suggestedUser.major || 'Student'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Suggested for you</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="btn-ghost">
+                  <UserPlus className="w-3 h-3" />
+                </Button>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -59,20 +101,20 @@ export default function UsersSidebar() {
           </Button>
         </div>
         <div className="space-y-3">
-          {activeUsers.map((user) => (
-            <div key={user.id} className="flex items-center gap-3 cursor-pointer hover:bg-surface rounded-lg p-2 transition-colors">
+          {activeUsers.map((activeUser) => (
+            <div key={activeUser.id} className="flex items-center gap-3 cursor-pointer hover:bg-surface rounded-lg p-2 transition-colors">
               <div className="relative">
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">{user.avatar}</span>
+                  <span className="text-sm font-bold text-white">{activeUser.avatar}</span>
                 </div>
-                {user.online && (
+                {activeUser.online && (
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success border-2 border-card rounded-full"></div>
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{user.name}</p>
+                <p className="text-sm font-medium text-foreground">{activeUser.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {user.online ? 'Active now' : 'Active 2h ago'}
+                  {activeUser.online ? 'Active now' : 'Active 2h ago'}
                 </p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { Search, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useUsers } from '@/hooks/useUsers';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface UserSearchProps {
@@ -11,6 +12,7 @@ interface UserSearchProps {
 }
 
 export default function UserSearch({ onStartChat }: UserSearchProps) {
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const { users, loading, searchUsers } = useUsers();
@@ -50,9 +52,9 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUserClick = (user: any, e: React.MouseEvent) => {
+  const handleUserClick = (selectedUser: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/profile/${user.user_id}`);
+    navigate(`/profile/${selectedUser.user_id}`);
     setShowResults(false);
     setQuery('');
   };
@@ -63,6 +65,9 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
     setShowResults(false);
     setQuery('');
   };
+
+  // Filter out current user from search results
+  const filteredUsers = users.filter(searchUser => searchUser.user_id !== user?.id);
 
   return (
     <div className="relative" ref={searchRef}>
@@ -83,32 +88,32 @@ export default function UserSearch({ onStartChat }: UserSearchProps) {
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
               Searching users...
             </div>
-          ) : users.length > 0 ? (
-            users.map((user) => (
+          ) : filteredUsers.length > 0 ? (
+            filteredUsers.map((searchUser) => (
               <div
-                key={user.id}
+                key={searchUser.id}
                 className="p-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div 
                     className="flex items-center gap-3 cursor-pointer flex-1"
-                    onClick={(e) => handleUserClick(user, e)}
+                    onClick={(e) => handleUserClick(searchUser, e)}
                   >
                     <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
                       <span className="text-sm font-bold text-white">
-                        {user.full_name?.charAt(0) || user.username?.charAt(0) || 'U'}
+                        {searchUser.full_name?.charAt(0) || searchUser.username?.charAt(0) || 'U'}
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground">{user.full_name || user.username}</p>
-                      <p className="text-sm text-muted-foreground">@{user.username}</p>
-                      {user.university && <p className="text-xs text-muted-foreground">{user.university}</p>}
+                      <p className="font-semibold text-foreground">{searchUser.full_name || searchUser.username}</p>
+                      <p className="text-sm text-muted-foreground">@{searchUser.username}</p>
+                      {searchUser.university && <p className="text-xs text-muted-foreground">{searchUser.university}</p>}
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => handleStartChat(user.user_id, e)}
+                    onClick={(e) => handleStartChat(searchUser.user_id, e)}
                     className="ml-2 hover:bg-primary/10"
                   >
                     <MessageCircle className="w-4 h-4" />

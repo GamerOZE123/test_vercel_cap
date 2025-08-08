@@ -1,6 +1,7 @@
 
 import React from 'react';
 import MobileNavigation from './MobileNavigation';
+import { Bell } from 'lucide-react';
 
 interface MobileLayoutProps {
   children: React.ReactNode;
@@ -20,9 +21,8 @@ export default function MobileLayout({
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-foreground">Campus Connect</h1>
             <div className="flex items-center gap-2">
-              {/* Notification icon - you can replace with actual notification functionality */}
               <button className="p-2 rounded-full hover:bg-muted">
-                <div className="w-5 h-5 bg-primary rounded-full"></div>
+                <Bell className="w-6 h-6 text-foreground" />
               </button>
             </div>
           </div>
