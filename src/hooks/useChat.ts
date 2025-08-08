@@ -21,10 +21,10 @@ interface Message {
   created_at: string;
 }
 
-export const useChat = () => {
+export const useChat = (selectedConversationId?: string | null) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchConversations = async () => {
@@ -65,10 +65,10 @@ export const useChat = () => {
       }
       
       console.log('Fetched messages:', data);
-      setCurrentMessages(data || []);
+      setMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      setCurrentMessages([]);
+      setMessages([]);
     }
   };
 
@@ -135,9 +135,15 @@ export const useChat = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (selectedConversationId) {
+      fetchMessages(selectedConversationId);
+    }
+  }, [selectedConversationId]);
+
   return {
     conversations,
-    currentMessages,
+    messages,
     loading,
     fetchMessages,
     sendMessage,
