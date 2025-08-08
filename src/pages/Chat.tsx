@@ -1,281 +1,264 @@
-
 import React, { useState, useEffect } from 'react';
-import Layout from '@/components/layout/Layout';
-import MobileLayout from '@/components/layout/MobileLayout';
-import UserSearch from '@/components/chat/UserSearch';
-import MobileChatHeader from '@/components/chat/MobileChatHeader';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/hooks/useChat';
-import { useRecentChats } from '@/hooks/useRecentChats';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useNavigate } from 'react-router-dom';
+import { useRecentChats } from '@/hooks/useRecentChats';
+import { usePresence } from '@/hooks/usePresence';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import MobileChatHeader from '@/components/chat/MobileChatHeader';
+import { PresenceIndicator } from '@/components/ui/presence-indicator';
+import UserSearch from '@/components/chat/UserSearch';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Chat() {
-  const { user } = useAuth();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { getUserById } = useUsers();
+  const { addRecentChat } = useRecentChats();
+  const { isUserOnline } = usePresence();
+  const { unreadCounts, markConversationAsRead } = useUnreadMessages();
+  
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [showUserList, setShowUserList] = useState(true);
-  
-  const { 
-    conversations, 
-    messages, 
-    sendMessage, 
-    createConversation,
-    loading: chatLoading 
-  } = useChat(selectedConversationId);
-  
-  const { recentChats, addRecentChat } = useRecentChats();
-  const { getUserById } = useUsers();
+  const [isMobile] = useState(window.innerWidth < 768);
 
-  const handleUserClick = async (userId: string) => {
-    try {
-      const userProfile = await getUserById(userId);
-      if (userProfile) {
-        setSelectedUser(userProfile);
-        const conversationId = await createConversation(userId);
-        setSelectedConversationId(conversationId);
-        await addRecentChat(userId);
-        
-        if (isMobile) {
-          setShowUserList(false);
+  const { conversations, messages, loading, sendMessage, createConversation, fetchMessages } = useChat(selectedConversationId);
+
+  useEffect(() => {
+    if (!user) return;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          if (payload.new.conversation_id === selectedConversationId) {
+            fetchMessages(selectedConversationId);
+          }
         }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedConversationId, fetchMessages, supabase]);
+
+  const handleConversationSelect = async (conversation: any) => {
+    setSelectedConversationId(conversation.conversation_id);
+    setSelectedUser({
+      id: conversation.other_user_id,
+      full_name: conversation.other_user_name,
+      username: conversation.other_user_name,
+      avatar_url: conversation.other_user_avatar,
+      university: conversation.other_user_university
+    });
+
+    // Mark conversation as read
+    await markConversationAsRead(conversation.conversation_id);
+    
+    // Add to recent chats
+    await addRecentChat(conversation.other_user_id);
+  };
+
+  const handleUserSelect = async (selectedUser: any) => {
+    try {
+      const conversationId = await createConversation(selectedUser.user_id);
+      if (conversationId) {
+        setSelectedConversationId(conversationId);
+        setSelectedUser(selectedUser);
+        await addRecentChat(selectedUser.user_id);
       }
     } catch (error) {
-      console.error('Error starting chat:', error);
+      console.error('Error creating conversation:', error);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversationId) return;
-    
-    try {
-      await sendMessage(selectedConversationId, newMessage);
+    if (!selectedConversationId || !newMessage.trim()) return;
+
+    const result = await sendMessage(selectedConversationId, newMessage);
+    if (result.success) {
       setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
     }
   };
 
-  const handleBackToUserList = () => {
-    setShowUserList(true);
+  const handleUsernameClick = () => {
+    if (selectedUser?.id) {
+      navigate(`/profile/${selectedUser.id}`);
+    }
+  };
+
+  const handleBack = () => {
     setSelectedConversationId(null);
     setSelectedUser(null);
   };
 
-  const handleUsernameClick = (userId: string) => {
-    navigate(`/profile/${userId}`);
-  };
-
-  // Desktop Layout
-  if (!isMobile) {
+  if (loading) {
     return (
-      <Layout>
-        <div className="h-[calc(100vh-8rem)] flex gap-6">
-          {/* User List */}
-          <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
-            <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
-            
-            <UserSearch onStartChat={handleUserClick} />
-            
-            <div className="mt-6 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Recent Chats</h3>
-              {recentChats.map((chat) => (
-                <div
-                  key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleUserClick(chat.other_user_id)}
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {chat.other_user_name?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{chat.other_user_name}</p>
-                    <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Chat Area */}
-          <div className="flex-1 bg-card border border-border rounded-2xl flex flex-col">
-            {selectedUser ? (
-              <>
-                <div className="p-6 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-white">
-                        {selectedUser.full_name?.charAt(0) || selectedUser.username?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 
-                        className="font-semibold text-foreground cursor-pointer hover:text-primary"
-                        onClick={() => handleUsernameClick(selectedUser.user_id)}
-                      >
-                        {selectedUser.full_name || selectedUser.username}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">{selectedUser.university}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                          message.sender_id === user?.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-foreground'
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.sender_id === user?.id 
-                            ? 'text-primary-foreground/70' 
-                            : 'text-muted-foreground'
-                        }`}>
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="p-6 border-t border-border">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Type your message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-foreground mb-2">Select a conversation</h3>
-                  <p className="text-muted-foreground">Choose a user to start chatting</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Loading conversations...</div>
+      </div>
     );
   }
 
-  // Mobile Layout
   return (
-    <>
-      {showUserList ? (
-        <MobileLayout showHeader={true} showNavigation={true}>
-          <div className="p-4">
-            <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
-            
-            <UserSearch onStartChat={handleUserClick} />
-            
-            <div className="mt-6 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Recent Chats</h3>
-              {recentChats.map((chat) => (
-                <div
-                  key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleUserClick(chat.other_user_id)}
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {chat.other_user_name?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{chat.other_user_name}</p>
-                    <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+    <div className="flex h-screen bg-background">
+      {/* Desktop/Tablet Layout */}
+      {!isMobile && (
+        <div className="w-1/3 border-r border-border bg-card">
+          <div className="p-4 border-b border-border">
+            <h2 className="text-lg font-semibold mb-4">Messages</h2>
+            <UserSearch onUserSelect={handleUserSelect} />
           </div>
-        </MobileLayout>
-      ) : (
-        <div className="min-h-screen bg-background flex flex-col">
-          <MobileChatHeader
-            user={selectedUser}
-            onBack={handleBackToUserList}
-            onUsernameClick={() => selectedUser && handleUsernameClick(selectedUser.user_id)}
-          />
           
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20">
-            {messages.map((message) => (
+          <div className="overflow-y-auto">
+            {conversations.map((conversation) => (
               <div
-                key={message.id}
-                className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                key={conversation.conversation_id}
+                onClick={() => handleConversationSelect(conversation)}
+                className={`p-4 border-b border-border cursor-pointer hover:bg-muted transition-colors ${
+                  selectedConversationId === conversation.conversation_id ? 'bg-muted' : ''
+                }`}
               >
-                <div
-                  className={`max-w-xs px-4 py-2 rounded-2xl ${
-                    message.sender_id === user?.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.sender_id === user?.id 
-                      ? 'text-primary-foreground/70' 
-                      : 'text-muted-foreground'
-                  }`}>
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-white">
+                        {conversation.other_user_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <PresenceIndicator 
+                      isOnline={isUserOnline(conversation.other_user_id)}
+                      hasUnread={unreadCounts[conversation.conversation_id] > 0}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{conversation.other_user_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {conversation.last_message || 'No messages yet'}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
         </div>
       )}
-    </>
+
+      {/* Mobile Layout */}
+      {isMobile && selectedConversationId && selectedUser && (
+        <MobileChatHeader
+          user={selectedUser}
+          onBack={handleBack}
+          onUsernameClick={handleUsernameClick}
+        />
+      )}
+
+      {/* Chat Area */}
+      <div className={`flex-1 flex flex-col ${isMobile ? 'pt-16' : ''}`}>
+        {selectedConversationId ? (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  <div
+                    className={`max-w-[70%] p-3 rounded-lg ${
+                      message.sender_id === user?.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    <p>{message.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(message.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Message Input */}
+            <div className="p-4 border-t border-border bg-card">
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  className="flex-1"
+                />
+                <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            {isMobile ? (
+              <div className="text-center p-8">
+                <UserSearch onUserSelect={handleUserSelect} />
+                <div className="mt-8 space-y-4">
+                  {conversations.map((conversation) => (
+                    <div
+                      key={conversation.conversation_id}
+                      onClick={() => handleConversationSelect(conversation)}
+                      className="p-4 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-white">
+                              {conversation.other_user_name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <PresenceIndicator 
+                            isOnline={isUserOnline(conversation.other_user_id)}
+                            hasUnread={unreadCounts[conversation.conversation_id] > 0}
+                          />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold">{conversation.other_user_name}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {conversation.last_message || 'No messages yet'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-lg">Select a conversation to start messaging</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

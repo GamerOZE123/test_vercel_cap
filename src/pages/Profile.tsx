@@ -1,299 +1,198 @@
 
 import React, { useState, useEffect } from 'react';
-import Layout from '@/components/layout/Layout';
-import MobileLayout from '@/components/layout/MobileLayout';
+import { useParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Settings, MessageCircle, Calendar, MapPin, GraduationCap } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFollow } from '@/hooks/useFollow';
+import { useUsers } from '@/hooks/useUsers';
+import { usePosts } from '@/hooks/usePosts';
 import PostCard from '@/components/post/PostCard';
 import EditProfileModal from '@/components/profile/EditProfileModal';
-import { Button } from '@/components/ui/button';
-import { Settings, MapPin, Calendar, Edit, UserPlus, UserMinus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useParams } from 'react-router-dom';
-import { useFollow } from '@/hooks/useFollow';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { toast } from 'sonner';
 
 export default function Profile() {
-  const { user } = useAuth();
   const { userId } = useParams();
-  const [profile, setProfile] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
+  const { user: currentUser } = useAuth();
+  const { getUserById } = useUsers();
+  const { isFollowing, followersCount, followingCount, toggleFollow } = useFollow(userId);
+  const { posts, loading: postsLoading, refreshPosts } = usePosts(userId);
+  
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const isMobile = useIsMobile();
-  
-  const isOwnProfile = !userId || userId === user?.id;
-  const targetUserId = userId || user?.id;
-  
-  const { isFollowing, loading: followLoading, toggleFollow, canFollow } = useFollow(targetUserId);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  const fetchProfile = async () => {
-    if (!targetUserId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .single();
-      
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const fetchUserPosts = async () => {
-    if (!targetUserId) return;
-    
-    try {
-      console.log('Fetching posts for user:', targetUserId);
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles!posts_user_id_fkey (
-            user_id,
-            full_name,
-            username,
-            avatar_url,
-            university,
-            major
-          )
-        `)
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      console.log('Fetched user posts:', data);
-      setPosts(data || []);
-    } catch (error) {
-      console.error('Error fetching user posts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProfileUpdate = () => {
-    fetchProfile();
-  };
-
-  const handleEditPost = (postId: string) => {
-    toast.info('Edit post functionality will be implemented soon!');
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId)
-        .eq('user_id', user?.id);
-      
-      if (error) throw error;
-      
-      setPosts(posts.filter(post => post.id !== postId));
-      toast.success('Post deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      toast.error('Failed to delete post');
-    }
-  };
+  const isOwnProfile = !userId || userId === currentUser?.id;
 
   useEffect(() => {
-    if (targetUserId) {
-      fetchProfile();
-      fetchUserPosts();
+    const fetchUser = async () => {
+      try {
+        if (isOwnProfile && currentUser) {
+          // For own profile, fetch from profiles table
+          const userData = await getUserById(currentUser.id);
+          setUser(userData);
+        } else if (userId) {
+          // For other users' profiles
+          const userData = await getUserById(userId);
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [userId, currentUser, isOwnProfile, getUserById]);
+
+  const handleProfileUpdate = async () => {
+    setShowEditModal(false);
+    // Refresh user data
+    if (isOwnProfile && currentUser) {
+      const userData = await getUserById(currentUser.id);
+      setUser(userData);
     }
-  }, [targetUserId]);
+  };
 
   if (loading) {
-    const LoadingComponent = () => (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading profile...</div>
       </div>
-    );
-
-    return isMobile ? (
-      <MobileLayout showHeader={false} showNavigation={true}>
-        <LoadingComponent />
-      </MobileLayout>
-    ) : (
-      <Layout>
-        <LoadingComponent />
-      </Layout>
     );
   }
 
-  const ProfileContent = () => (
-    <div className="space-y-6">
-      {/* Profile Header */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="relative">
-          {/* Cover Image */}
-          <div className="h-32 bg-gradient-to-r from-primary to-accent rounded-xl mb-4"></div>
-          
-          {/* Profile Info */}
-          <div className="flex items-start gap-4">
-            <div className="relative -mt-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center border-4 border-card">
-                <span className="text-2xl font-bold text-white">
-                  {profile?.full_name?.charAt(0) || profile?.username?.charAt(0) || 'U'}
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex-1 pt-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">
-                    {profile?.full_name || profile?.username || 'Unknown User'}
-                  </h1>
-                  <p className="text-muted-foreground">
-                    {profile?.major ? `${profile.major} Student` : 'Student'}
-                  </p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>{profile?.university || 'University'}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>Joined {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Recently'}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {isOwnProfile ? (
-                    <>
-                      {isMobile ? (
-                        <Button variant="outline" size="icon" onClick={() => setIsEditModalOpen(true)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Profile
-                        </Button>
-                      )}
-                      {!isMobile && (
-                        <Button variant="ghost" size="icon">
-                          <Settings className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </>
-                  ) : canFollow ? (
-                    <Button 
-                      onClick={toggleFollow} 
-                      disabled={followLoading}
-                      variant={isFollowing ? "outline" : "default"}
-                      size="sm"
-                    >
-                      {isFollowing ? (
-                        <>
-                          <UserMinus className="w-4 h-4 mr-2" />
-                          Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Follow
-                        </>
-                      )}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <p className="text-foreground leading-relaxed">
-                  {profile?.bio || 'No bio available.'}
-                </p>
-              </div>
-              
-              {/* Stats */}
-              <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border">
-                <div className="text-center">
-                  <p className="text-xl font-bold text-foreground">{posts.length}</p>
-                  <p className="text-sm text-muted-foreground">Posts</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-bold text-foreground">{profile?.followers_count || 0}</p>
-                  <p className="text-sm text-muted-foreground">Followers</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-bold text-foreground">{profile?.following_count || 0}</p>
-                  <p className="text-sm text-muted-foreground">Following</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">User not found</div>
       </div>
-
-      {/* Posts */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-bold text-foreground">
-          {isOwnProfile ? 'Your Posts' : `${profile?.full_name || 'User'}'s Posts`}
-        </h2>
-        {posts.length > 0 ? (
-          posts.map((post) => {
-            const transformedPost = {
-              id: post.id,
-              user_id: post.user_id,
-              user: {
-                name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
-                avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
-                university: post.profiles?.university || post.profiles?.major || 'University'
-              },
-              content: post.content || '',
-              image: post.image_url,
-              timestamp: new Date(post.created_at).toLocaleDateString()
-            };
-            
-            return (
-              <PostCard 
-                key={post.id} 
-                post={transformedPost}
-                showEditOption={isOwnProfile}
-                onEdit={handleEditPost}
-                onDelete={handleDeletePost}
-              />
-            );
-          })
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              {isOwnProfile ? 'You haven\'t posted anything yet.' : 'This user hasn\'t posted anything yet.'}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <>
-      {isMobile ? (
-        <MobileLayout showHeader={false} showNavigation={true}>
-          <div className="p-4">
-            <ProfileContent />
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Profile Header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">
+                {user.full_name?.charAt(0) || user.username?.charAt(0) || 'U'}
+              </span>
+            </div>
+            
+            <div className="flex-1 space-y-2">
+              <div className="flex flex-col md:flex-row md:items-center gap-2">
+                <h1 className="text-2xl font-bold">{user.full_name || user.username}</h1>
+                <span className="text-muted-foreground">@{user.username}</span>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                {user.university && (
+                  <div className="flex items-center gap-1">
+                    <GraduationCap className="w-4 h-4" />
+                    {user.university}
+                  </div>
+                )}
+                {user.major && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {user.major}
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Joined {new Date(user.created_at).toLocaleDateString()}
+                </div>
+              </div>
+              
+              {user.bio && (
+                <p className="text-muted-foreground max-w-2xl">{user.bio}</p>
+              )}
+              
+              <div className="flex gap-6 text-sm">
+                <span><strong>{followingCount}</strong> Following</span>
+                <span><strong>{followersCount}</strong> Followers</span>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              {isOwnProfile ? (
+                <Button onClick={() => setShowEditModal(true)} variant="outline">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => toggleFollow()}
+                    variant={isFollowing ? "outline" : "default"}
+                  >
+                    {isFollowing ? 'Unfollow' : 'Follow'}
+                  </Button>
+                  <Button variant="outline">
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Message
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </MobileLayout>
-      ) : (
-        <Layout>
-          <ProfileContent />
-        </Layout>
-      )}
+        </CardContent>
+      </Card>
 
-      <EditProfileModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onProfileUpdate={handleProfileUpdate}
-      />
-    </>
+      {/* Profile Content */}
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="likes">Likes</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="posts" className="space-y-4">
+          {postsLoading ? (
+            <div className="text-center py-8">Loading posts...</div>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {isOwnProfile ? "You haven't posted anything yet." : "No posts yet."}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <PostCard 
+                  key={post.id} 
+                  post={post} 
+                  onUpdate={refreshPosts}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="media" className="space-y-4">
+          <div className="text-center py-8 text-muted-foreground">
+            Media posts will appear here
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="likes" className="space-y-4">
+          <div className="text-center py-8 text-muted-foreground">
+            Liked posts will appear here
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <EditProfileModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
+    </div>
   );
 }
