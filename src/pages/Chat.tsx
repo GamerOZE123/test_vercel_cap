@@ -25,14 +25,22 @@ export default function Chat() {
   
   const { 
     conversations, 
-    messages, 
+    currentMessages, 
+    loading: chatLoading,
+    fetchMessages,
     sendMessage, 
-    createConversation,
-    loading: chatLoading 
-  } = useChat(selectedConversationId);
+    createConversation
+  } = useChat();
   
   const { recentChats, addRecentChat } = useRecentChats();
   const { getUserById } = useUsers();
+
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (selectedConversationId) {
+      fetchMessages(selectedConversationId);
+    }
+  }, [selectedConversationId, fetchMessages]);
 
   const handleUserClick = async (userId: string) => {
     try {
@@ -130,7 +138,7 @@ export default function Chat() {
                 </div>
 
                 <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                  {messages.map((message) => (
+                  {currentMessages && currentMessages.map((message) => (
                     <div
                       key={message.id}
                       className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
@@ -224,13 +232,13 @@ export default function Chat() {
       ) : (
         <div className="min-h-screen bg-background flex flex-col">
           <MobileChatHeader
-            user={selectedUser}
-            onBack={handleBackToUserList}
-            onUsernameClick={() => selectedUser && handleUsernameClick(selectedUser.user_id)}
+            userName={selectedUser?.full_name || selectedUser?.username || 'Unknown User'}
+            userUniversity={selectedUser?.university || 'University'}
+            onBackClick={handleBackToUserList}
           />
           
           <div className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20">
-            {messages.map((message) => (
+            {currentMessages && currentMessages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
