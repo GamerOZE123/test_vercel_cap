@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
 import UserSearch from '@/components/chat/UserSearch';
 import MobileChatHeader from '@/components/chat/MobileChatHeader';
+import ChatActions from '@/components/chat/ChatActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, ArrowLeft } from 'lucide-react';
@@ -13,6 +13,7 @@ import { useRecentChats } from '@/hooks/useRecentChats';
 import { useUsers } from '@/hooks/useUsers';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ export default function Chat() {
     createConversation
   } = useChat();
   
-  const { recentChats, addRecentChat } = useRecentChats();
+  const { recentChats, addRecentChat, refreshRecentChats } = useRecentChats();
   const { getUserById } = useUsers();
 
   // Fetch messages when conversation is selected
@@ -81,6 +82,34 @@ export default function Chat() {
     navigate(`/profile/${userId}`);
   };
 
+  const removeRecentChat = async (otherUserId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('recent_chats')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('other_user_id', otherUserId);
+      
+      if (error) throw error;
+      
+      // Refresh recent chats
+      await refreshRecentChats();
+      
+      // If this was the selected chat, reset selection
+      if (selectedUser?.user_id === otherUserId) {
+        setSelectedConversationId(null);
+        setSelectedUser(null);
+        if (isMobile) {
+          setShowUserList(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error removing recent chat:', error);
+    }
+  };
+
   // Desktop Layout
   if (!isMobile) {
     return (
@@ -97,17 +126,21 @@ export default function Chat() {
               {recentChats.map((chat) => (
                 <div
                   key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleUserClick(chat.other_user_id)}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {chat.other_user_name?.charAt(0) || 'U'}
-                    </span>
+                  <div onClick={() => handleUserClick(chat.other_user_id)} className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-white">
+                        {chat.other_user_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">{chat.other_user_name}</p>
+                      <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{chat.other_user_name}</p>
-                    <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ChatActions onRemoveChat={() => removeRecentChat(chat.other_user_id)} />
                   </div>
                 </div>
               ))}
@@ -212,18 +245,20 @@ export default function Chat() {
               {recentChats.map((chat) => (
                 <div
                   key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleUserClick(chat.other_user_id)}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {chat.other_user_name?.charAt(0) || 'U'}
-                    </span>
+                  <div onClick={() => handleUserClick(chat.other_user_id)} className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-white">
+                        {chat.other_user_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">{chat.other_user_name}</p>
+                      <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{chat.other_user_name}</p>
-                    <p className="text-sm text-muted-foreground">{chat.other_user_university}</p>
-                  </div>
+                  <ChatActions onRemoveChat={() => removeRecentChat(chat.other_user_id)} />
                 </div>
               ))}
             </div>
