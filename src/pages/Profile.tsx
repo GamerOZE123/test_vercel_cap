@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, UserPlus, Edit } from 'lucide-react';
@@ -73,7 +72,14 @@ export default function Profile() {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      
+      // Ensure posts_count is included, defaulting to 0 if not present
+      const profileWithPostsCount = {
+        ...data,
+        posts_count: data.posts_count || 0
+      };
+      
+      setProfile(profileWithPostsCount);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Failed to load profile');
@@ -107,6 +113,11 @@ export default function Profile() {
       })) || [];
       
       setPosts(transformedPosts);
+      
+      // Update profile with actual posts count
+      if (profile) {
+        setProfile(prev => prev ? { ...prev, posts_count: transformedPosts.length } : null);
+      }
     } catch (error) {
       console.error('Error fetching user posts:', error);
     }
