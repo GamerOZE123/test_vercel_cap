@@ -8,10 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface UserSearchProps {
-  onUserSelect: (userId: string) => void;
+  onStartChat: (userId: string) => void;
 }
 
-export default function UserSearch({ onUserSelect }: UserSearchProps) {
+export default function UserSearch({ onStartChat }: UserSearchProps) {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -39,7 +39,7 @@ export default function UserSearch({ onUserSelect }: UserSearchProps) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, searchUsers]);
+  }, [query]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,7 +61,7 @@ export default function UserSearch({ onUserSelect }: UserSearchProps) {
 
   const handleStartChat = async (userId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onUserSelect(userId);
+    await onStartChat(userId);
     setShowResults(false);
     setQuery('');
   };

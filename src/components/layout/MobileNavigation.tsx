@@ -24,7 +24,7 @@ export default function MobileNavigation() {
               key={item.name}
               to={item.href}
               className={cn(
-                'relative flex flex-col items-center justify-center gap-1 transition-colors p-2',
+                'flex flex-col items-center justify-center gap-1 transition-colors',
                 isActive 
                   ? 'text-primary' 
                   : 'text-muted-foreground hover:text-foreground'
@@ -33,7 +33,7 @@ export default function MobileNavigation() {
               <item.icon className={cn('w-5 h-5', isActive && 'text-primary')} />
               <span className="text-xs font-medium">{item.name}</span>
               {isActive && (
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-primary rounded-b-full" />
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-primary rounded-full" />
               )}
             </NavLink>
           );
