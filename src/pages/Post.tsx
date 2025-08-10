@@ -52,7 +52,14 @@ export default function Post() {
           .single();
 
         if (error) throw error;
-        setPost(data);
+        
+        // Transform the data to match our Post interface
+        const transformedPost = {
+          ...data,
+          profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
+        };
+        
+        setPost(transformedPost);
       } catch (error) {
         console.error('Error fetching post:', error);
       } finally {
@@ -85,7 +92,7 @@ export default function Post() {
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : post ? (
-        <PostCard {...post} />
+        <PostCard {...post} isDetailView={true} />
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Post not found</p>

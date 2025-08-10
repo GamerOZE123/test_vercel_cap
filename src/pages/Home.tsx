@@ -6,9 +6,25 @@ import ImageUploadButton from '@/components/post/ImageUploadButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface Post {
+  id: string;
+  content: string;
+  image_url?: string;
+  user_id: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  profiles: {
+    full_name: string;
+    username: string;
+    avatar_url?: string;
+    university?: string;
+  };
+}
+
 export default function Home() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPosts = async () => {
@@ -18,13 +34,11 @@ export default function Home() {
         .from('posts')
         .select(`
           *,
-          profiles (
-            user_id,
+          profiles!inner (
             full_name,
             username,
             avatar_url,
-            university,
-            major
+            university
           )
         `)
         .order('created_at', { ascending: false });
@@ -35,24 +49,17 @@ export default function Home() {
       }
       
       console.log('Fetched posts:', data);
-      setPosts(data || []);
+      
+      // Transform the data to match our Post interface
+      const transformedPosts = data?.map(post => ({
+        ...post,
+        profiles: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
+      })) || [];
+      
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      // Fallback: fetch posts without profile data
-      try {
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('posts')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (fallbackError) throw fallbackError;
-        
-        console.log('Fallback posts data:', fallbackData);
-        setPosts(fallbackData || []);
-      } catch (fallbackError) {
-        console.error('Fallback fetch failed:', fallbackError);
-        setPosts([]);
-      }
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -102,24 +109,9 @@ export default function Home() {
       <div className="max-w-2xl mx-auto">
         <div className="space-y-6">
           {posts.length > 0 ? (
-            posts.map((post) => {
-              console.log('Rendering post:', post);
-              const transformedPost = {
-                id: post.id,
-                user: {
-                  name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
-                  avatar: (post.profiles?.full_name || post.profiles?.username || 'U').charAt(0).toUpperCase(),
-                  university: post.profiles?.university || post.profiles?.major || 'University'
-                },
-                content: post.content || '',
-                image: post.image_url,
-                likes: post.likes_count || 0,
-                comments: post.comments_count || 0,
-                timestamp: new Date(post.created_at).toLocaleDateString()
-              };
-              
-              return <PostCard key={post.id} post={transformedPost} />;
-            })
+            posts.map((post) => (
+              <PostCard key={post.id} {...post} />
+            ))
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No posts yet. Start by uploading an image!</p>
