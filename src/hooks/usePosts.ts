@@ -32,7 +32,7 @@ export const usePosts = (userId?: string) => {
         .from('posts')
         .select(`
           *,
-          profiles!posts_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url,
@@ -49,12 +49,8 @@ export const usePosts = (userId?: string) => {
       
       if (error) throw error;
       
-      const transformedPosts = (data || []).map(post => ({
-        ...post,
-        profiles: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
-      }));
-      
-      setPosts(transformedPosts);
+      console.log('Fetched posts:', data);
+      setPosts(data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {

@@ -22,7 +22,7 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto px-4 md:px-0">
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => (
