@@ -32,7 +32,7 @@ export const usePosts = (userId?: string) => {
         .from('posts')
         .select(`
           *,
-          profiles (
+          profiles!inner (
             full_name,
             username,
             avatar_url,
@@ -49,10 +49,26 @@ export const usePosts = (userId?: string) => {
       
       if (error) throw error;
       
-      console.log('Fetched posts:', data);
-      setPosts(data || []);
+      console.log('Fetched posts raw data:', data);
+      
+      // Transform the data to match the Post interface
+      const transformedPosts: Post[] = (data || []).map((post: any) => ({
+        id: post.id,
+        content: post.content,
+        image_url: post.image_url,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        user_id: post.user_id,
+        likes_count: post.likes_count || 0,
+        comments_count: post.comments_count || 0,
+        profiles: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
+      }));
+      
+      console.log('Transformed posts:', transformedPosts);
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
