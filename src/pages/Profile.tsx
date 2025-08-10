@@ -73,10 +73,10 @@ export default function Profile() {
 
       if (error) throw error;
       
-      // Ensure posts_count is included, defaulting to 0 if not present
-      const profileWithPostsCount = {
+      // Ensure posts_count is included, defaulting to 0 since it's not in the database
+      const profileWithPostsCount: UserProfile = {
         ...data,
-        posts_count: data.posts_count || 0
+        posts_count: 0 // Will be updated when we fetch posts
       };
       
       setProfile(profileWithPostsCount);
