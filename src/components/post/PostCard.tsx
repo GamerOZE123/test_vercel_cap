@@ -62,6 +62,10 @@ export default function PostCard({
     navigate(`/profile/${user_id}`);
   };
 
+  const handleAddComment = async (content: string) => {
+    await addComment(content);
+  };
+
   return (
     <div className="bg-card border border-border rounded-2xl p-6 hover:shadow-md transition-all duration-200">
       <div 
@@ -156,7 +160,7 @@ export default function PostCard({
         <CommentSection
           postId={id}
           comments={comments}
-          onAddComment={addComment}
+          onAddComment={handleAddComment}
         />
       )}
     </div>
