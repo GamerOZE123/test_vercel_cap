@@ -65,24 +65,26 @@ export default function Home() {
       const transformedPosts = data.map(post => {
         console.log('Processing post:', post);
         
-        // Handle the profiles relationship
+        // Handle the profiles relationship - ensure we get a single profile object
         let profileData = post.profiles;
+        
+        // If profiles is an array, take the first element
         if (Array.isArray(profileData)) {
           profileData = profileData[0];
         }
         
+        // Provide fallback if no profile data exists
         if (!profileData) {
           console.warn('Post missing profile data:', post.id);
-          // Provide fallback profile data
           profileData = {
             full_name: 'Unknown User',
             username: 'unknown',
-            avatar_url: null,
-            university: 'Unknown'
+            avatar_url: undefined,
+            university: undefined
           };
         }
         
-        const transformedPost = {
+        const transformedPost: Post = {
           ...post,
           profiles: profileData,
           likes_count: post.likes_count || 0,
