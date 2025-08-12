@@ -6,104 +6,53 @@ import ImageUploadButton from '@/components/post/ImageUploadButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface Post {
-  id: string;
-  content: string;
-  image_url?: string;
-  user_id: string;
-  created_at: string;
-  likes_count: number;
-  comments_count: number;
-  profiles: {
-    full_name: string;
-    username: string;
-    avatar_url?: string;
-    university?: string;
-  };
-}
-
 export default function Home() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchPosts = async () => {
     try {
       console.log('Fetching posts...');
-      setError(null);
-      
       const { data, error } = await supabase
         .from('posts')
         .select(`
           *,
-          profiles!posts_user_id_fkey (
+          profiles (
+            user_id,
             full_name,
             username,
             avatar_url,
-            university
+            university,
+            major
           )
         `)
         .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching posts:', error);
-        setError(`Error fetching posts: ${error.message}`);
-        setPosts([]);
-        return;
+        throw error;
       }
       
-      console.log('Raw fetched data:', data);
-      
-      if (!data || data.length === 0) {
-        console.log('No posts found in database');
-        setPosts([]);
-        return;
-      }
-      
-      // Transform the data to match our Post interface
-      const transformedPosts = data.map(post => {
-        console.log('Processing post:', post);
-        
-        // Handle the profiles relationship - the database returns an array, we need a single object
-        let profileData;
-        
-        if (Array.isArray(post.profiles)) {
-          // Take the first profile if it's an array
-          profileData = post.profiles[0];
-        } else {
-          // If it's already an object, use it directly
-          profileData = post.profiles;
-        }
-        
-        // Provide fallback if no profile data exists
-        if (!profileData) {
-          console.warn('Post missing profile data:', post.id);
-          profileData = {
-            full_name: 'Unknown User',
-            username: 'unknown',
-            avatar_url: undefined,
-            university: undefined
-          };
-        }
-        
-        const transformedPost: Post = {
-          ...post,
-          profiles: profileData,
-          likes_count: post.likes_count || 0,
-          comments_count: post.comments_count || 0
-        };
-        
-        console.log('Transformed post:', transformedPost);
-        return transformedPost;
-      });
-      
-      console.log('All transformed posts:', transformedPosts);
-      setPosts(transformedPosts);
+      console.log('Fetched posts:', data);
+      setPosts(data || []);
     } catch (error) {
-      console.error('Error in fetchPosts:', error);
-      setError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setPosts([]);
+      console.error('Error fetching posts:', error);
+      // Fallback: fetch posts without profile data
+      try {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        
+        console.log('Fallback posts data:', fallbackData);
+        setPosts(fallbackData || []);
+      } catch (fallbackError) {
+        console.error('Fallback fetch failed:', fallbackError);
+        setPosts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -111,7 +60,6 @@ export default function Home() {
 
   // Set up real-time subscription for new posts
   useEffect(() => {
-    console.log('Setting up posts fetch and real-time subscription');
     fetchPosts();
 
     const channel = supabase
@@ -119,21 +67,20 @@ export default function Home() {
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'posts' },
         (payload) => {
-          console.log('New post added via real-time:', payload);
+          console.log('New post added:', payload);
           fetchPosts(); // Refresh posts when a new one is added
         }
       )
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'posts' },
         (payload) => {
-          console.log('Post updated via real-time:', payload);
+          console.log('Post updated:', payload);
           fetchPosts();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, []);
@@ -144,7 +91,6 @@ export default function Home() {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 text-muted-foreground">Loading posts...</span>
           </div>
         </div>
       </Layout>
@@ -154,34 +100,29 @@ export default function Home() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
-            <p className="text-destructive text-sm">{error}</p>
-            <button 
-              onClick={fetchPosts}
-              className="text-destructive hover:underline text-sm mt-2"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-        
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => {
-              console.log('Rendering post:', post.id, post);
-              return <PostCard key={post.id} {...post} />;
+              console.log('Rendering post:', post);
+              const transformedPost = {
+                id: post.id,
+                user: {
+                  name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
+                  avatar: (post.profiles?.full_name || post.profiles?.username || 'U').charAt(0).toUpperCase(),
+                  university: post.profiles?.university || post.profiles?.major || 'University'
+                },
+                content: post.content || '',
+                image: post.image_url,
+                likes: post.likes_count || 0,
+                comments: post.comments_count || 0,
+                timestamp: new Date(post.created_at).toLocaleDateString()
+              };
+              
+              return <PostCard key={post.id} post={transformedPost} />;
             })
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                {error ? 'Unable to load posts due to an error.' : 'No posts yet. Start by uploading an image!'}
-              </p>
-              {!error && (
-                <p className="text-sm text-muted-foreground">
-                  Check the console for debugging information.
-                </p>
-              )}
+              <p className="text-muted-foreground">No posts yet. Start by uploading an image!</p>
             </div>
           )}
         </div>
