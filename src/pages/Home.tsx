@@ -65,12 +65,15 @@ export default function Home() {
       const transformedPosts = data.map(post => {
         console.log('Processing post:', post);
         
-        // Handle the profiles relationship - ensure we get a single profile object
-        let profileData = post.profiles;
+        // Handle the profiles relationship - the database returns an array, we need a single object
+        let profileData;
         
-        // If profiles is an array, take the first element
-        if (Array.isArray(profileData)) {
-          profileData = profileData[0];
+        if (Array.isArray(post.profiles)) {
+          // Take the first profile if it's an array
+          profileData = post.profiles[0];
+        } else {
+          // If it's already an object, use it directly
+          profileData = post.profiles;
         }
         
         // Provide fallback if no profile data exists
