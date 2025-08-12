@@ -18,7 +18,7 @@ export default function Home() {
         .from('posts')
         .select(`
           *,
-          profiles (
+          profiles!posts_user_id_fkey (
             user_id,
             full_name,
             username,
@@ -106,6 +106,7 @@ export default function Home() {
               console.log('Rendering post:', post);
               const transformedPost = {
                 id: post.id,
+                user_id: post.user_id,
                 user: {
                   name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
                   avatar: (post.profiles?.full_name || post.profiles?.username || 'U').charAt(0).toUpperCase(),
