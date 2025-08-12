@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { Heart, MessageCircle, Share, MoreHorizontal, Edit, Trash, Download, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,6 +31,18 @@ interface PostCardProps {
   onEdit?: (postId: string) => void;
   onDelete?: (postId: string) => void;
 }
+
+const isImageUrl = (url: string) => {
+  return url.includes('placeholder.com') || /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+};
+
+const getFileNameFromUrl = (url: string) => {
+  if (url.includes('placeholder.com')) {
+    const match = url.match(/text=(.+)/);
+    return match ? decodeURIComponent(match[1]) : 'File';
+  }
+  return url.split('/').pop() || 'File';
+};
 
 export default function PostCard({ post, showEditOption = false, onEdit, onDelete }: PostCardProps) {
   const { user } = useAuth();
@@ -100,11 +112,27 @@ export default function PostCard({ post, showEditOption = false, onEdit, onDelet
         <p className="text-foreground leading-relaxed">{post.content}</p>
         {post.image && (
           <div className="rounded-xl overflow-hidden">
-            <img 
-              src={post.image} 
-              alt="Post content" 
-              className="w-full h-auto object-cover"
-            />
+            {isImageUrl(post.image) ? (
+              <img 
+                src={post.image} 
+                alt="Post content" 
+                className="w-full h-auto object-cover"
+              />
+            ) : (
+              <div className="bg-muted/20 border border-border rounded-lg p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <File className="w-8 h-8 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-foreground">{getFileNameFromUrl(post.image)}</p>
+                    <p className="text-sm text-muted-foreground">Attached file</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

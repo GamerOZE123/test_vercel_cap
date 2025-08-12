@@ -104,13 +104,26 @@ export default function Home() {
           {posts.length > 0 ? (
             posts.map((post) => {
               console.log('Rendering post:', post);
+              console.log('Post profiles data:', post.profiles);
+              
+              // Better fallback logic for user display
+              let userName = 'Unknown User';
+              let userAvatar = 'U';
+              let userUniversity = 'University';
+              
+              if (post.profiles) {
+                userName = post.profiles.full_name || post.profiles.username || 'Unknown User';
+                userAvatar = (post.profiles.full_name || post.profiles.username || 'U').charAt(0).toUpperCase();
+                userUniversity = post.profiles.university || post.profiles.major || 'University';
+              }
+              
               const transformedPost = {
                 id: post.id,
                 user_id: post.user_id,
                 user: {
-                  name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
-                  avatar: (post.profiles?.full_name || post.profiles?.username || 'U').charAt(0).toUpperCase(),
-                  university: post.profiles?.university || post.profiles?.major || 'University'
+                  name: userName,
+                  avatar: userAvatar,
+                  university: userUniversity
                 },
                 content: post.content || '',
                 image: post.image_url,
@@ -123,7 +136,7 @@ export default function Home() {
             })
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No posts yet. Start by uploading an image!</p>
+              <p className="text-muted-foreground">No posts yet. Start by uploading a file!</p>
             </div>
           )}
         </div>
