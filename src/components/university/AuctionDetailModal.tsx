@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,11 +31,6 @@ interface Bid {
   amount: number;
   created_at: string;
   user_id: string;
-  profiles?: {
-    full_name: string;
-    username: string;
-    avatar_url: string;
-  };
 }
 
 interface AuctionDetailModalProps {
@@ -55,7 +51,6 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
 
   const fetchBids = async () => {
     try {
-      // First get the bids
       const { data: bidsData, error: bidsError } = await supabase
         .from('auction_bids')
         .select('id, amount, created_at, user_id')
@@ -64,29 +59,7 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
 
       if (bidsError) throw bidsError;
 
-      if (!bidsData || bidsData.length === 0) {
-        setBids([]);
-        return;
-      }
-
-      // Get unique user IDs
-      const userIds = [...new Set(bidsData.map(bid => bid.user_id))];
-
-      // Fetch profiles for those users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, username, avatar_url')
-        .in('user_id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine bids with profiles
-      const bidsWithProfiles = bidsData.map(bid => ({
-        ...bid,
-        profiles: profilesData?.find(profile => profile.user_id === bid.user_id) || null
-      }));
-
-      setBids(bidsWithProfiles);
+      setBids(bidsData || []);
     } catch (error) {
       console.error('Error fetching bids:', error);
       setBids([]);
@@ -129,15 +102,15 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
   const minutesLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-background border border-border rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="flex">
+        <div className="flex flex-col lg:flex-row">
           {/* Left side - Image */}
           <div className="flex-1 relative">
             <img
               src={auction.image_urls?.[currentImageIndex] || '/placeholder.svg'}
               alt={auction.title}
-              className="w-full h-[600px] object-cover"
+              className="w-full h-64 lg:h-[600px] object-cover"
             />
             
             {/* Image navigation */}
@@ -156,44 +129,44 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
             )}
 
             {/* Price overlay */}
-            <div className="absolute bottom-4 left-4 bg-black/70 text-white p-4 rounded-xl">
-              <p className="text-sm opacity-90">Current Bid</p>
-              <p className="text-3xl font-bold">${auction.current_price}</p>
+            <div className="absolute bottom-4 left-4 bg-black/70 text-white p-3 lg:p-4 rounded-xl">
+              <p className="text-xs lg:text-sm opacity-90">Current Bid</p>
+              <p className="text-xl lg:text-3xl font-bold">${auction.current_price}</p>
             </div>
           </div>
 
           {/* Right side - Details and bidding */}
-          <div className="w-96 p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-foreground">{auction.title}</h2>
+          <div className="w-full lg:w-96 p-4 lg:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-4 lg:mb-6">
+              <h2 className="text-lg lg:text-xl font-bold text-foreground line-clamp-2">{auction.title}</h2>
               <Button variant="ghost" size="sm" onClick={onClose}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
             {/* Time left */}
-            <div className="bg-surface rounded-xl p-4 mb-6">
+            <div className="bg-surface rounded-xl p-4 mb-4 lg:mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-foreground">Time Remaining</span>
               </div>
               {timeLeft > 0 ? (
-                <p className="text-lg font-bold text-primary">
+                <p className="text-base lg:text-lg font-bold text-primary">
                   {hoursLeft}h {minutesLeft}m
                 </p>
               ) : (
-                <p className="text-lg font-bold text-red-500">Auction Ended</p>
+                <p className="text-base lg:text-lg font-bold text-red-500">Auction Ended</p>
               )}
             </div>
 
             {/* Description */}
-            <div className="mb-6">
-              <p className="text-muted-foreground">{auction.description}</p>
+            <div className="mb-4 lg:mb-6">
+              <p className="text-sm lg:text-base text-muted-foreground">{auction.description}</p>
             </div>
 
             {/* Bidding section */}
             {timeLeft > 0 && (
-              <div className="bg-surface rounded-xl p-4 mb-6">
+              <div className="bg-surface rounded-xl p-4 mb-4 lg:mb-6">
                 <h3 className="font-semibold text-foreground mb-3">Place a Bid</h3>
                 <div className="flex gap-2">
                   <Input
@@ -214,19 +187,17 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
 
             {/* Recent bids */}
             <div className="flex-1 overflow-y-auto">
-              <h3 className="font-semibold text-foreground mb-3">Recent Bids</h3>
+              <h3 className="font-semibold text-foreground mb-3">Recent Bids ({bids.length})</h3>
               <div className="space-y-3">
                 {bids.length > 0 ? (
-                  bids.slice(0, 5).map((bid) => (
+                  bids.slice(0, 10).map((bid, index) => (
                     <div key={bid.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
                       <div className="flex items-center gap-2">
-                        <img
-                          src={bid.profiles?.avatar_url || '/placeholder.svg'}
-                          alt={bid.profiles?.full_name || 'User'}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
+                        <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-primary">#{index + 1}</span>
+                        </div>
                         <span className="text-sm text-foreground">
-                          {bid.profiles?.full_name || bid.profiles?.username || 'Anonymous'}
+                          Anonymous Bidder
                         </span>
                       </div>
                       <span className="text-sm font-medium text-primary">${bid.amount}</span>
@@ -237,25 +208,6 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
                 )}
               </div>
             </div>
-
-            {/* Seller info */}
-            {auction.profiles && (
-              <div className="pt-4 border-t border-border mt-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={auction.profiles.avatar_url || '/placeholder.svg'}
-                    alt={auction.profiles.full_name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {auction.profiles.full_name || auction.profiles.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Seller</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
