@@ -63,7 +63,7 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
           amount,
           created_at,
           user_id,
-          profiles!auction_bids_user_id_fkey (
+          profiles:user_id (
             full_name,
             username,
             avatar_url
