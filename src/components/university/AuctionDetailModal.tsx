@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,27 +55,41 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
 
   const fetchBids = async () => {
     try {
-      const { data: bidsData, error } = await supabase
+      // First get the bids
+      const { data: bidsData, error: bidsError } = await supabase
         .from('auction_bids')
-        .select(`
-          id,
-          amount,
-          created_at,
-          user_id,
-          profiles:user_id (
-            full_name,
-            username,
-            avatar_url
-          )
-        `)
+        .select('id, amount, created_at, user_id')
         .eq('auction_id', auction.id)
         .order('amount', { ascending: false });
 
-      if (error) throw error;
+      if (bidsError) throw bidsError;
 
-      setBids(bidsData || []);
+      if (!bidsData || bidsData.length === 0) {
+        setBids([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(bidsData.map(bid => bid.user_id))];
+
+      // Fetch profiles for those users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine bids with profiles
+      const bidsWithProfiles = bidsData.map(bid => ({
+        ...bid,
+        profiles: profilesData?.find(profile => profile.user_id === bid.user_id) || null
+      }));
+
+      setBids(bidsWithProfiles);
     } catch (error) {
       console.error('Error fetching bids:', error);
+      setBids([]);
     }
   };
 
