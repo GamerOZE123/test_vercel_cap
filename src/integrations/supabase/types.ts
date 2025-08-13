@@ -14,6 +14,148 @@ export type Database = {
   }
   public: {
     Tables: {
+      auction_bids: {
+        Row: {
+          amount: number
+          auction_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          auction_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          auction_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_bids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auctions: {
+        Row: {
+          created_at: string
+          current_price: number
+          description: string | null
+          end_time: string
+          id: string
+          image_urls: string[] | null
+          is_active: boolean | null
+          reserve_price: number | null
+          starting_price: number
+          title: string
+          user_id: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_price?: number
+          description?: string | null
+          end_time: string
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          reserve_price?: number | null
+          starting_price: number
+          title: string
+          user_id: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_price?: number
+          description?: string | null
+          end_time?: string
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          reserve_price?: number | null
+          starting_price?: number
+          title?: string
+          user_id?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
+      club_memberships: {
+        Row: {
+          club_id: string
+          id: string
+          joined_at: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_memberships_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clubs: {
+        Row: {
+          admin_user_id: string
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          member_count: number | null
+          name: string
+        }
+        Insert: {
+          admin_user_id: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          member_count?: number | null
+          name: string
+        }
+        Update: {
+          admin_user_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          member_count?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -106,6 +248,98 @@ export type Database = {
         }
         Relationships: []
       }
+      holiday_attendees: {
+        Row: {
+          event_id: string
+          id: string
+          registered_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          registered_at?: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          registered_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holiday_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "holiday_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      holiday_events: {
+        Row: {
+          created_at: string
+          current_attendees: number | null
+          date: string
+          description: string | null
+          id: string
+          image_url: string | null
+          location: string | null
+          max_attendees: number | null
+          organizer_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          current_attendees?: number | null
+          date: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          current_attendees?: number | null
+          date?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      item_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string
@@ -126,6 +360,83 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      marketplace_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      marketplace_items: {
+        Row: {
+          category_id: string | null
+          condition: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_urls: string[] | null
+          is_sold: boolean | null
+          location: string | null
+          price: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_sold?: boolean | null
+          location?: string | null
+          price: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_sold?: boolean | null
+          location?: string | null
+          price?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
