@@ -56,7 +56,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-primary">Campus Connect</h1>
+          <h1 className="text-2xl font-bold text-primary">Unigramm</h1>
         </div>
         
         <div className="flex-1 max-w-md mx-8 relative" ref={searchRef}>
