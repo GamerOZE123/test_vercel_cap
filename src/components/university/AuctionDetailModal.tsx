@@ -59,8 +59,11 @@ export default function AuctionDetailModal({ auction, onClose, onBidPlaced }: Au
       const { data: bidsData, error } = await supabase
         .from('auction_bids')
         .select(`
-          *,
-          profiles (
+          id,
+          amount,
+          created_at,
+          user_id,
+          profiles!auction_bids_user_id_fkey (
             full_name,
             username,
             avatar_url
