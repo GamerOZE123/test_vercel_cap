@@ -6,6 +6,20 @@ import ImageUploadButton from '@/components/post/ImageUploadButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface Post {
+  id: string;
+  user_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  profiles: {
+    full_name?: string;
+    username?: string;
+    university?: string;
+    major?: string;
+  } | null;
+}
+
 export default function Home() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<any[]>([]);
@@ -35,24 +49,34 @@ export default function Home() {
       }
       
       console.log('Fetched posts:', data);
-      setPosts(data || []);
+      
+      // Transform posts data with proper user information
+      const transformedPosts = (data || []).map((post: Post) => {
+        const profile = post.profiles;
+        
+        // Create user display data with proper fallbacks
+        const userName = profile?.full_name || profile?.username || 'Anonymous User';
+        const userAvatar = userName.charAt(0).toUpperCase();
+        const userUniversity = profile?.university || profile?.major || 'University';
+        
+        return {
+          id: post.id,
+          user_id: post.user_id,
+          user: {
+            name: userName,
+            avatar: userAvatar,
+            university: userUniversity
+          },
+          content: post.content || '',
+          image: post.image_url,
+          timestamp: new Date(post.created_at).toLocaleDateString()
+        };
+      });
+      
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      // Fallback: fetch posts without profile data
-      try {
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('posts')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (fallbackError) throw fallbackError;
-        
-        console.log('Fallback posts data:', fallbackData);
-        setPosts(fallbackData || []);
-      } catch (fallbackError) {
-        console.error('Fallback fetch failed:', fallbackError);
-        setPosts([]);
-      }
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -68,7 +92,7 @@ export default function Home() {
         { event: 'INSERT', schema: 'public', table: 'posts' },
         (payload) => {
           console.log('New post added:', payload);
-          fetchPosts(); // Refresh posts when a new one is added
+          fetchPosts();
         }
       )
       .on('postgres_changes',
@@ -102,38 +126,9 @@ export default function Home() {
       <div className="max-w-2xl mx-auto">
         <div className="space-y-6">
           {posts.length > 0 ? (
-            posts.map((post) => {
-              console.log('Rendering post:', post);
-              console.log('Post profiles data:', post.profiles);
-              
-              // Better fallback logic for user display
-              let userName = 'Unknown User';
-              let userAvatar = 'U';
-              let userUniversity = 'University';
-              
-              if (post.profiles) {
-                userName = post.profiles.full_name || post.profiles.username || 'Unknown User';
-                userAvatar = (post.profiles.full_name || post.profiles.username || 'U').charAt(0).toUpperCase();
-                userUniversity = post.profiles.university || post.profiles.major || 'University';
-              }
-              
-              const transformedPost = {
-                id: post.id,
-                user_id: post.user_id,
-                user: {
-                  name: userName,
-                  avatar: userAvatar,
-                  university: userUniversity
-                },
-                content: post.content || '',
-                image: post.image_url,
-                likes: post.likes_count || 0,
-                comments: post.comments_count || 0,
-                timestamp: new Date(post.created_at).toLocaleDateString()
-              };
-              
-              return <PostCard key={post.id} post={transformedPost} />;
-            })
+            posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No posts yet. Start by uploading a file!</p>
