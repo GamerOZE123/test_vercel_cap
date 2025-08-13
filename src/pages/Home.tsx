@@ -48,7 +48,7 @@ export default function Home() {
         .from('posts')
         .select(`
           *,
-          profiles!posts_user_id_fkey (
+          profiles!inner(
             full_name,
             username,
             university,
@@ -56,6 +56,7 @@ export default function Home() {
             avatar_url
           )
         `)
+        .eq('profiles.user_id', 'posts.user_id')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -66,7 +67,7 @@ export default function Home() {
       console.log('Fetched posts:', data);
       
       // Transform posts data with proper user information
-      const transformedPosts = (data || []).map((post: PostData) => {
+      const transformedPosts = (data || []).map((post: any) => {
         const profile = post.profiles;
         
         // Create user display data with proper fallbacks
