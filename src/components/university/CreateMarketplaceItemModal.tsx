@@ -4,7 +4,25 @@ import { Button } from '@/components/ui/button';
 import { X, Upload, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface MarketplaceItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  image_urls: string[];
+  condition: string;
+  location: string;
+  created_at: string;
+  user_id: string;
+  profiles?: {
+    full_name: string;
+    username: string;
+    avatar_url: string;
+  };
+}
+
 interface CreateMarketplaceItemModalProps {
+  item?: MarketplaceItem;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -16,14 +34,14 @@ interface Category {
   icon: string;
 }
 
-export default function CreateMarketplaceItemModal({ onClose, onSuccess }: CreateMarketplaceItemModalProps) {
+export default function CreateMarketplaceItemModal({ item, onClose, onSuccess }: CreateMarketplaceItemModalProps) {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
+    title: item?.title || '',
+    description: item?.description || '',
+    price: item?.price?.toString() || '',
     category_id: '',
-    condition: '',
-    location: '',
+    condition: item?.condition || '',
+    location: item?.location || '',
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<File[]>([]);
@@ -57,6 +75,10 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
   };
 
   const uploadImages = async (): Promise<string[]> => {
+    if (images.length === 0 && item?.image_urls) {
+      return item.image_urls;
+    }
+
     const imageUrls: string[] = [];
 
     for (const image of images) {
@@ -90,20 +112,39 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
 
       const imageUrls = await uploadImages();
 
-      const { error } = await supabase
-        .from('marketplace_items')
-        .insert({
-          ...formData,
-          user_id: user.id,
-          price: parseFloat(formData.price),
-          image_urls: imageUrls,
-        });
+      const itemData = {
+        title: formData.title,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        condition: formData.condition,
+        location: formData.location,
+        image_urls: imageUrls,
+      };
 
-      if (error) throw error;
+      if (item) {
+        // Update existing item
+        const { error } = await supabase
+          .from('marketplace_items')
+          .update(itemData)
+          .eq('id', item.id);
+
+        if (error) throw error;
+      } else {
+        // Create new item
+        const { error } = await supabase
+          .from('marketplace_items')
+          .insert({
+            ...itemData,
+            user_id: user.id,
+            category_id: formData.category_id || null,
+          });
+
+        if (error) throw error;
+      }
 
       onSuccess();
     } catch (error) {
-      console.error('Error creating marketplace item:', error);
+      console.error('Error creating/updating marketplace item:', error);
     } finally {
       setUploading(false);
     }
@@ -113,7 +154,9 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-background rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-foreground">List New Item</h2>
+          <h2 className="text-xl font-bold text-foreground">
+            {item ? 'Edit Item' : 'List New Item'}
+          </h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
@@ -175,23 +218,38 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Category</label>
-              <select
-                value={formData.category_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
-                className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
-              >
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {!item && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Category</label>
+                <select
+                  value={formData.category_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Location</label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="Campus location"
+                />
+              </div>
+            </div>
+          )}
+
+          {item && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Location</label>
               <input
@@ -202,7 +260,7 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
                 placeholder="Campus location"
               />
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Images (Max 5)</label>
@@ -220,7 +278,9 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
                 className="flex flex-col items-center justify-center cursor-pointer"
               >
                 <Camera className="w-8 h-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload images</p>
+                <p className="text-sm text-muted-foreground">
+                  {item ? 'Click to replace images' : 'Click to upload images'}
+                </p>
               </label>
             </div>
 
@@ -246,6 +306,19 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
                 ))}
               </div>
             )}
+
+            {item && item.image_urls && item.image_urls.length > 0 && images.length === 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {item.image_urls.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Current ${index + 1}`}
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4 pt-4">
@@ -253,7 +326,7 @@ export default function CreateMarketplaceItemModal({ onClose, onSuccess }: Creat
               Cancel
             </Button>
             <Button type="submit" disabled={uploading} className="flex-1">
-              {uploading ? 'Creating...' : 'List Item'}
+              {uploading ? (item ? 'Updating...' : 'Creating...') : (item ? 'Update Item' : 'List Item')}
             </Button>
           </div>
         </form>
