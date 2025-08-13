@@ -36,15 +36,7 @@ export type Database = {
           post_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "comments_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       conversation_participants: {
         Row: {
@@ -133,15 +125,7 @@ export type Database = {
           post_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "likes_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
@@ -221,13 +205,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_related_post_id_fkey"
-            columns: ["related_post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "notifications_related_user_id_fkey"
             columns: ["related_user_id"]
             isOneToOne: false
@@ -247,31 +224,31 @@ export type Database = {
         Row: {
           comments_count: number | null
           content: string
-          created_at: string
+          created_at: string | null
           id: string
           image_url: string | null
           likes_count: number | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           comments_count?: number | null
           content: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           image_url?: string | null
           likes_count?: number | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           comments_count?: number | null
           content?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           image_url?: string | null
           likes_count?: number | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

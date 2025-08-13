@@ -6,23 +6,39 @@ import ImageUploadButton from '@/components/post/ImageUploadButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface Post {
+interface PostData {
   id: string;
   user_id: string;
   content: string;
   image_url?: string;
+  likes_count: number;
+  comments_count: number;
   created_at: string;
   profiles: {
     full_name?: string;
     username?: string;
     university?: string;
     major?: string;
+    avatar_url?: string;
   } | null;
+}
+
+interface TransformedPost {
+  id: string;
+  user_id: string;
+  user: {
+    name: string;
+    avatar: string;
+    university: string;
+  };
+  content: string;
+  image?: string;
+  timestamp: string;
 }
 
 export default function Home() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<TransformedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPosts = async () => {
@@ -33,12 +49,11 @@ export default function Home() {
         .select(`
           *,
           profiles!posts_user_id_fkey (
-            user_id,
             full_name,
             username,
-            avatar_url,
             university,
-            major
+            major,
+            avatar_url
           )
         `)
         .order('created_at', { ascending: false });
@@ -51,13 +66,13 @@ export default function Home() {
       console.log('Fetched posts:', data);
       
       // Transform posts data with proper user information
-      const transformedPosts = (data || []).map((post: Post) => {
+      const transformedPosts = (data || []).map((post: PostData) => {
         const profile = post.profiles;
         
         // Create user display data with proper fallbacks
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
         const userAvatar = userName.charAt(0).toUpperCase();
-        const userUniversity = profile?.university || profile?.major || 'University';
+        const userUniversity = profile?.university || 'University';
         
         return {
           id: post.id,
