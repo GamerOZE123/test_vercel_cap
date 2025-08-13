@@ -44,31 +44,51 @@ export default function Home() {
   const fetchPosts = async () => {
     try {
       console.log('Fetching posts...');
-      const { data, error } = await supabase
+      
+      // First get all posts
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles!inner(
-            full_name,
-            username,
-            university,
-            major,
-            avatar_url
-          )
-        `)
-        .eq('profiles.user_id', 'posts.user_id')
+        .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching posts:', error);
-        throw error;
+      if (postsError) {
+        console.error('Error fetching posts:', postsError);
+        throw postsError;
       }
       
-      console.log('Fetched posts:', data);
+      console.log('Fetched posts:', postsData);
       
-      // Transform posts data with proper user information
-      const transformedPosts = (data || []).map((post: any) => {
-        const profile = post.profiles;
+      if (!postsData || postsData.length === 0) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Get unique user IDs from posts
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+      
+      // Fetch profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, university, major, avatar_url')
+        .in('user_id', userIds);
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+      
+      console.log('Fetched profiles:', profilesData);
+      
+      // Create a map of user_id to profile
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.user_id, profile);
+      });
+      
+      // Transform posts data with profile information
+      const transformedPosts = postsData.map((post) => {
+        const profile = profilesMap.get(post.user_id);
         
         // Create user display data with proper fallbacks
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
