@@ -47,7 +47,9 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
       // Upload file if selected
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        console.log('Uploading file to bucket:', fileName);
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('posts')
@@ -55,9 +57,11 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
         if (uploadError) {
           console.error('File upload error:', uploadError);
-          toast.error('Failed to upload file');
+          toast.error('Failed to upload file: ' + uploadError.message);
           return;
         }
+
+        console.log('File uploaded successfully:', uploadData);
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -65,23 +69,27 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
           .getPublicUrl(fileName);
         
         fileUrl = publicUrl;
+        console.log('Public URL:', fileUrl);
       }
 
       // Create post in database
-      const { error: postError } = await supabase
+      console.log('Creating post with user ID:', user.id);
+      const { data: postData, error: postError } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: content.trim() || 'Shared a file',
           image_url: fileUrl
-        });
+        })
+        .select();
 
       if (postError) {
         console.error('Post creation error:', postError);
-        toast.error('Failed to create post');
+        toast.error('Failed to create post: ' + postError.message);
         return;
       }
 
+      console.log('Post created successfully:', postData);
       toast.success('Post created successfully!');
       setContent('');
       setSelectedFile(null);
