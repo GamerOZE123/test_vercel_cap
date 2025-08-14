@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Calendar, Users, BookOpen, Trophy, ShoppingBag, Gavel, PartyPopper, UsersIcon } from 'lucide-react';
+import { GraduationCap, Calendar, Users, BookOpen, Trophy, ShoppingBag, Gavel, PartyPopper, UsersIcon, Settings, LogOut } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import BuySellPage from '@/components/university/BuySellPage';
 import AuctionPage from '@/components/university/AuctionPage';
 import HolidayPage from '@/components/university/HolidayPage';
 import ClubsPage from '@/components/university/ClubsPage';
+import { useAuth } from '@/contexts/AuthContext';
 
 const departments = [
   { name: 'Computer Science', students: 1250, posts: 456 },
@@ -26,6 +28,15 @@ const navigationSections = [
 
 export default function University() {
   const [activeSection, setActiveSection] = useState('overview');
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -90,6 +101,7 @@ export default function University() {
 
       {/* Quick Access Grid */}
       <div className="post-card">
+        <h2 className="text-lg md:text-xl font-bold text-foreground mb-4">Quick Access</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {navigationSections.slice(1).map((section) => {
             const IconComponent = section.icon;
@@ -139,24 +151,41 @@ export default function University() {
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6">
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs with Settings */}
         <div className="post-card">
-          <div className="flex flex-wrap gap-2">
-            {navigationSections.map((section) => {
-              const IconComponent = section.icon;
-              return (
-                <Button
-                  key={section.id}
-                  variant={activeSection === section.id ? "default" : "outline"}
-                  onClick={() => setActiveSection(section.id)}
-                  className="flex items-center gap-2 text-xs md:text-sm"
-                  size="sm"
-                >
-                  <IconComponent className="w-3 h-3 md:w-4 md:h-4" />
-                  <span className="hidden sm:inline">{section.name}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-2 flex-1">
+              {navigationSections.map((section) => {
+                const IconComponent = section.icon;
+                return (
+                  <Button
+                    key={section.id}
+                    variant={activeSection === section.id ? "default" : "outline"}
+                    onClick={() => setActiveSection(section.id)}
+                    className="flex items-center gap-2 text-xs md:text-sm"
+                    size="sm"
+                  >
+                    <IconComponent className="w-3 h-3 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">{section.name}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            
+            {/* Settings Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <Settings className="w-4 h-4" />
                 </Button>
-              );
-            })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

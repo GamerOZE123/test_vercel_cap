@@ -104,8 +104,8 @@ export default function Profile() {
 
   useEffect(() => {
     if (targetUserId) {
-      fetchProfile();
-      fetchUserPosts();
+      setLoading(true);
+      Promise.all([fetchProfile(), fetchUserPosts()]);
     }
   }, [targetUserId]);
 
