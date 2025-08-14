@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Heart, MessageCircle, Settings, LogOut, UserPlus, UserMinus, MoreHorizontal, Trash } from 'lucide-react';
+import { Heart, UserPlus, UserMinus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import PostCard from '@/components/post/PostCard';
@@ -98,19 +96,35 @@ export default function Profile() {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      // First get the blocked user IDs
+      const { data: blockedData, error: blockedError } = await supabase
         .from('blocked_users')
-        .select(`
-          blocked_id,
-          profiles:blocked_id (
-            username,
-            full_name
-          )
-        `)
+        .select('blocked_id')
         .eq('blocker_id', user.id);
       
-      if (error) throw error;
-      setBlockedUsers(data || []);
+      if (blockedError) throw blockedError;
+
+      if (!blockedData || blockedData.length === 0) {
+        setBlockedUsers([]);
+        return;
+      }
+
+      // Then get the profile data for those users
+      const blockedIds = blockedData.map(item => item.blocked_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username, full_name')
+        .in('user_id', blockedIds);
+      
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const combinedData = blockedData.map(blocked => ({
+        blocked_id: blocked.blocked_id,
+        profiles: profilesData?.find(profile => profile.user_id === blocked.blocked_id) || null
+      }));
+
+      setBlockedUsers(combinedData);
     } catch (error) {
       console.error('Error fetching blocked users:', error);
     }
