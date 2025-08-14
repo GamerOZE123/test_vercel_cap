@@ -39,7 +39,7 @@ export default function PostCard({ post, showEditOption = false, onEdit, onDelet
   const handleDelete = () => onDelete?.(post.id);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+    <div className="md:bg-card md:border md:border-border md:rounded-2xl p-4 md:p-6 space-y-4 border-b border-border md:border-b-0">
       <PostHeader
         user={post.user}
         timestamp={post.timestamp}

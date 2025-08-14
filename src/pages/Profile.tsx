@@ -1,37 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Heart, UserPlus, UserMinus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import PostCard from '@/components/post/PostCard';
-import EditProfileModal from '@/components/profile/EditProfileModal';
-import { useFollow } from '@/hooks/useFollow';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { UserPlus, UserMinus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
-interface Profile {
+interface ProfileData {
   user_id: string;
   username: string;
   full_name: string;
-  bio: string;
   avatar_url: string;
   university: string;
   major: string;
+  bio: string;
   followers_count: number;
   following_count: number;
 }
 
-interface Post {
+interface PostWithProfile {
   id: string;
   content: string;
-  image_url: string;
-  created_at: string;
-  likes_count: number;
-  comments_count: number;
+  image?: string;
+  timestamp: string;
   user_id: string;
-  user_profile?: {
+  profiles: {
     username: string;
     full_name: string;
     avatar_url: string;
@@ -39,21 +35,9 @@ interface Post {
   };
 }
 
-interface PostCardData {
-  id: string;
-  user_id?: string;
-  user: {
-    name: string;
-    avatar: string;
-    university: string;
-  };
-  content: string;
-  image?: string;
-  timestamp: string;
-}
-
 interface BlockedUser {
   blocked_id: string;
+  blocker_id: string;
   profiles?: {
     username: string;
     full_name: string;
@@ -61,356 +45,311 @@ interface BlockedUser {
 }
 
 export default function Profile() {
-  const { userId } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { userId } = useParams<{ userId?: string }>();
+  const isOwnProfile = !userId || userId === user?.id;
+  const profileId = userId || user?.id;
+
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<PostWithProfile[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
-  
-  const targetUserId = userId || user?.id;
-  const isOwnProfile = user?.id === targetUserId;
-  
-  const { 
-    isFollowing, 
-    loading: followLoading, 
-    toggleFollow,
-    canFollow
-  } = useFollow(targetUserId || '');
+  const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
-  const { signOut } = useAuth();
+  useEffect(() => {
+    if (profileId) {
+      fetchUserData(profileId);
+      fetchUserPosts(profileId);
+      if (isOwnProfile) {
+        fetchBlockedUsers();
+      }
+    }
+  }, [profileId, isOwnProfile]);
 
-  const handleLogout = async () => {
+  useEffect(() => {
+    const checkFollowingStatus = async () => {
+      if (user && profileData && !isOwnProfile) {
+        try {
+          const { data, error } = await supabase
+            .from('followers')
+            .select('*')
+            .eq('follower_id', user.id)
+            .eq('following_id', profileData.user_id)
+            .single();
+
+          if (error) throw error;
+          setIsFollowing(!!data);
+        } catch (error) {
+          console.error("Error checking following status:", error);
+        }
+      }
+    };
+
+    checkFollowingStatus();
+  }, [user, profileData, isOwnProfile]);
+
+  const fetchUserPosts = async (userId: string) => {
     try {
-      await signOut();
-      navigate('/auth');
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*, profiles(username, full_name, avatar_url, university)')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false });
+
+      if (error) throw error;
+      setPosts(data || []);
     } catch (error) {
-      console.error('Error signing out:', error);
-      toast.error('Failed to sign out');
+      console.error("Error fetching user posts:", error);
     }
   };
 
   const fetchBlockedUsers = async () => {
     if (!user) return;
-    
+
     try {
-      // First get the blocked user IDs
-      const { data: blockedData, error: blockedError } = await supabase
+      const { data, error } = await supabase
         .from('blocked_users')
-        .select('blocked_id')
+        .select('blocked_id, blocker_id, profiles(username, full_name)')
         .eq('blocker_id', user.id);
-      
-      if (blockedError) throw blockedError;
 
-      if (!blockedData || blockedData.length === 0) {
-        setBlockedUsers([]);
-        return;
-      }
-
-      // Then get the profile data for those users
-      const blockedIds = blockedData.map(item => item.blocked_id);
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, username, full_name')
-        .in('user_id', blockedIds);
-      
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const combinedData = blockedData.map(blocked => ({
-        blocked_id: blocked.blocked_id,
-        profiles: profilesData?.find(profile => profile.user_id === blocked.blocked_id) || null
-      }));
-
-      setBlockedUsers(combinedData);
+      if (error) throw error;
+      setBlockedUsers(data || []);
     } catch (error) {
-      console.error('Error fetching blocked users:', error);
+      console.error("Error fetching blocked users:", error);
     }
   };
 
-  const handleUnblock = async (blockedUserId: string) => {
-    if (!user) return;
-    
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, username, full_name, avatar_url, university, major, bio, followers_count, following_count')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) throw error;
+      setProfileData(data);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!user || !profileData) return;
+
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('followers')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', profileData.user_id);
+
+        if (error) throw error;
+        setIsFollowing(false);
+        toast.success(`Unfollowed ${profileData.full_name || profileData.username}`);
+
+        // Update follower count
+        await supabase.rpc('decrement_follower', { user_id: profileData.user_id });
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('followers')
+          .insert([{ follower_id: user.id, following_id: profileData.user_id }]);
+
+        if (error) throw error;
+        setIsFollowing(true);
+        toast.success(`Followed ${profileData.full_name || profileData.username}`);
+
+        // Update follower count
+        await supabase.rpc('increment_follower', { user_id: profileData.user_id });
+      }
+
+      // Refresh profile data to update counts
+      fetchUserData(profileId);
+    } catch (error) {
+      console.error("Error following/unfollowing user:", error);
+      toast.error("Failed to follow/unfollow user");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnblockUser = async (blockedUserId: string) => {
     try {
       const { error } = await supabase
         .from('blocked_users')
         .delete()
-        .eq('blocker_id', user.id)
+        .eq('blocker_id', user?.id)
         .eq('blocked_id', blockedUserId);
-      
+
       if (error) throw error;
-      
-      setBlockedUsers(prev => prev.filter(block => block.blocked_id !== blockedUserId));
-      toast.success('User unblocked successfully');
+
+      setBlockedUsers(blockedUsers.filter(blockedUser => blockedUser.blocked_id !== blockedUserId));
+      toast.success('User unblocked successfully!');
     } catch (error) {
       console.error('Error unblocking user:', error);
       toast.error('Failed to unblock user');
     }
   };
 
-  const fetchProfile = async () => {
-    if (!targetUserId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .single();
-      
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast.error('Failed to load profile');
-    }
-  };
-
-  const fetchUserPosts = async () => {
-    if (!targetUserId) return;
-    
-    try {
-      // First get the posts
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: false });
-      
-      if (postsError) throw postsError;
-
-      // Then get the profile for this user
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('username, full_name, avatar_url, university')
-        .eq('user_id', targetUserId)
-        .single();
-      
-      if (profileError) throw profileError;
-
-      // Combine the data
-      const postsWithProfile = (postsData || []).map(post => ({
-        ...post,
-        user_profile: profileData
-      }));
-
-      setPosts(postsWithProfile);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (targetUserId) {
-      setLoading(true);
-      Promise.all([fetchProfile(), fetchUserPosts()]);
-    }
-    if (user && isOwnProfile) {
-      fetchBlockedUsers();
-    }
-  }, [targetUserId, user, isOwnProfile]);
-
-  const handleStartChat = async () => {
-    if (!targetUserId || !user) return;
-    
-    try {
-      const { data, error } = await supabase.rpc('get_or_create_conversation', {
-        user1_id: user.id,
-        user2_id: targetUserId
-      });
-      
-      if (error) throw error;
-      navigate('/chat');
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      toast.error('Failed to start chat');
-    }
-  };
-
-  const transformPostsForPostCard = (posts: Post[]): PostCardData[] => {
+  const transformPostsForPostCard = (posts: PostWithProfile[]) => {
     return posts.map(post => ({
       id: post.id,
-      user_id: post.user_id,
       user: {
-        name: post.user_profile?.full_name || post.user_profile?.username || 'Unknown User',
-        avatar: post.user_profile?.full_name?.charAt(0) || post.user_profile?.username?.charAt(0) || 'U',
-        university: post.user_profile?.university || ''
+        name: post.profiles.full_name || post.profiles.username || 'Unknown',
+        avatar: post.profiles.avatar_url || '',
+        university: post.profiles.university || ''
       },
       content: post.content,
-      image: post.image_url || undefined,
-      timestamp: new Date(post.created_at).toLocaleDateString()
+      image: post.image,
+      timestamp: post.timestamp
     }));
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-muted-foreground">Loading profile...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <Layout>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Profile not found</h2>
-          <p className="text-muted-foreground">The user you're looking for doesn't exist.</p>
-        </div>
-      </Layout>
-    );
-  }
+  if (loading) return <Layout><div className="text-center py-8">Loading...</div></Layout>;
+  if (!profileData) return <Layout><div className="text-center py-8">User not found</div></Layout>;
 
   return (
     <Layout>
       <div className="space-y-6">
         {/* Profile Header */}
         <div className="post-card">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {profile.full_name?.charAt(0) || profile.username?.charAt(0) || 'U'}
-                </span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{profile.full_name || profile.username}</h1>
-                <p className="text-muted-foreground">@{profile.username}</p>
-                {profile.university && (
-                  <p className="text-sm text-muted-foreground mt-1">{profile.university}</p>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto md:mx-0">
+              <span className="text-2xl md:text-3xl font-bold text-white">
+                {profileData.full_name?.charAt(0) || profileData.username?.charAt(0) || 'U'}
+              </span>
+            </div>
+            
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                {profileData.full_name || profileData.username}
+              </h1>
+              <div className="space-y-1 text-muted-foreground mb-4">
+                {profileData.username && (
+                  <p className="text-sm">@{profileData.username}</p>
                 )}
-                {profile.major && (
-                  <p className="text-sm text-muted-foreground">{profile.major}</p>
+                {profileData.university && (
+                  <p className="text-sm">{profileData.university}</p>
+                )}
+                {profileData.major && (
+                  <p className="text-sm">{profileData.major}</p>
+                )}
+                {profileData.bio && (
+                  <p className="text-sm mt-2">{profileData.bio}</p>
                 )}
               </div>
-            </div>
-          </div>
-
-          {profile.bio && (
-            <p className="text-foreground mb-4">{profile.bio}</p>
-          )}
-
-          {/* Stats */}
-          <div className="flex gap-6 mb-6">
-            <div className="text-center">
-              <p className="text-xl font-bold text-primary">{posts.length}</p>
-              <p className="text-sm text-muted-foreground">Posts</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-primary">{profile.followers_count}</p>
-              <p className="text-sm text-muted-foreground">Followers</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-primary">{profile.following_count}</p>
-              <p className="text-sm text-muted-foreground">Following</p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            {isOwnProfile ? (
-              <Button onClick={() => setIsEditModalOpen(true)} className="flex-1">
-                Edit Profile
-              </Button>
-            ) : (
-              <>
-                <Button 
-                  onClick={toggleFollow}
-                  disabled={followLoading}
-                  variant={isFollowing ? "outline" : "default"}
-                  className="flex-1"
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserMinus className="w-4 h-4 mr-2" />
-                      Unfollow
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Follow
-                    </>
-                  )}
-                </Button>
-                <Button onClick={handleStartChat} variant="outline">
-                  Message
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Blocked Users Section - Only for own profile */}
-          {isOwnProfile && blockedUsers.length > 0 && (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="text-lg font-semibold mb-4">Blocked Users</h3>
-              <div className="space-y-2">
-                {blockedUsers.map((blockedUser) => (
-                  <div key={blockedUser.blocked_id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-foreground">
-                      {blockedUser.profiles?.full_name || blockedUser.profiles?.username || `User ${blockedUser.blocked_id}`}
-                    </span>
-                    <Button
-                      onClick={() => handleUnblock(blockedUser.blocked_id)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Unblock
-                    </Button>
-                  </div>
-                ))}
+              
+              <div className="flex justify-center md:justify-start gap-4 mb-4">
+                <div className="text-center">
+                  <p className="font-bold text-foreground">{posts.length}</p>
+                  <p className="text-sm text-muted-foreground">Posts</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-foreground">{profileData.followers_count || 0}</p>
+                  <p className="text-sm text-muted-foreground">Followers</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-foreground">{profileData.following_count || 0}</p>
+                  <p className="text-sm text-muted-foreground">Following</p>
+                </div>
               </div>
+              
+              {!isOwnProfile && (
+                <div className="flex justify-center md:justify-start gap-2">
+                  <Button
+                    onClick={handleFollow}
+                    variant={isFollowing ? "outline" : "default"}
+                    className="flex items-center gap-2"
+                    disabled={followLoading}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserMinus className="w-4 h-4" />
+                        Unfollow
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        Follow
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Posts */}
+        {/* Content Tabs */}
         <Tabs defaultValue="posts" className="w-full">
-          <TabsList className="w-full">
-            <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
-            <TabsTrigger value="liked" className="flex-1">Liked</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="posts" className="space-y-4 mt-6">
+          <TabsContent value="posts" className="space-y-4">
             {posts.length > 0 ? (
-              transformPostsForPostCard(posts).map((post) => (
-                <PostCard key={post.id} post={post} />
+              posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={transformPostsForPostCard([post])[0]}
+                  showEditOption={isOwnProfile}
+                />
               ))
             ) : (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-foreground mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">
-                  {isOwnProfile ? "Share your first post!" : "This user hasn't posted anything yet."}
-                </p>
+              <div className="post-card text-center py-8">
+                <p className="text-muted-foreground">No posts yet</p>
               </div>
             )}
           </TabsContent>
           
-          <TabsContent value="liked" className="space-y-4 mt-6">
-            <div className="text-center py-12">
-              <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Liked posts</h3>
-              <p className="text-muted-foreground">Posts you've liked will appear here</p>
-            </div>
+          <TabsContent value="blocked" className="space-y-4">
+            {isOwnProfile ? (
+              blockedUsers.length > 0 ? (
+                <div className="post-card">
+                  <h3 className="text-lg font-semibold mb-4">Blocked Users</h3>
+                  <div className="space-y-3">
+                    {blockedUsers.map((blockedUser) => (
+                      <div key={blockedUser.blocked_id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                        <div>
+                          <p className="font-medium text-foreground">
+                            {blockedUser.profiles?.full_name || blockedUser.profiles?.username || 'Unknown User'}
+                          </p>
+                          {blockedUser.profiles?.username && (
+                            <p className="text-sm text-muted-foreground">@{blockedUser.profiles.username}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnblockUser(blockedUser.blocked_id)}
+                        >
+                          Unblock
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="post-card text-center py-8">
+                  <p className="text-muted-foreground">No blocked users</p>
+                </div>
+              )
+            ) : (
+              <div className="post-card text-center py-8">
+                <p className="text-muted-foreground">You can only view your own blocked users</p>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Edit Profile Modal */}
-      <EditProfileModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onProfileUpdate={fetchProfile}
-      />
     </Layout>
   );
 }

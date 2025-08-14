@@ -2,19 +2,11 @@
 import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Calendar, Users, BookOpen, Trophy, ShoppingBag, Gavel, PartyPopper, UsersIcon } from 'lucide-react';
+import { GraduationCap, ShoppingBag, Gavel, PartyPopper, UsersIcon } from 'lucide-react';
 import BuySellPage from '@/components/university/BuySellPage';
 import AuctionPage from '@/components/university/AuctionPage';
 import HolidayPage from '@/components/university/HolidayPage';
 import ClubsPage from '@/components/university/ClubsPage';
-
-const departments = [
-  { name: 'Computer Science', students: 1250, posts: 456 },
-  { name: 'Business Administration', students: 980, posts: 321 },
-  { name: 'Engineering', students: 1100, posts: 287 },
-  { name: 'Psychology', students: 750, posts: 198 },
-  { name: 'Biology', students: 650, posts: 156 },
-];
 
 const navigationSections = [
   { id: 'overview', name: 'Overview', icon: GraduationCap },
@@ -102,33 +94,6 @@ export default function University() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Departments */}
-      <div className="post-card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg md:text-xl font-bold text-foreground">Top Departments</h2>
-          <BookOpen className="w-5 h-5 text-muted-foreground" />
-        </div>
-        <div className="space-y-3">
-          {departments.map((dept, index) => (
-            <div key={dept.name} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary">{index + 1}</span>
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground text-sm md:text-base">{dept.name}</h3>
-                  <p className="text-xs text-muted-foreground">{dept.students} students</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-foreground">{dept.posts}</p>
-                <p className="text-xs text-muted-foreground">posts</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
