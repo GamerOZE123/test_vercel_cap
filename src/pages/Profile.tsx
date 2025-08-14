@@ -54,10 +54,9 @@ export default function Profile() {
   
   const { 
     isFollowing, 
-    followersCount, 
-    followingCount, 
-    toggleFollow, 
-    loading: followLoading 
+    loading: followLoading, 
+    toggleFollow,
+    canFollow
   } = useFollow(targetUserId || '');
 
   const { signOut } = useAuth();
@@ -111,7 +110,11 @@ export default function Profile() {
       
       const postsWithUser = data.map(post => ({
         ...post,
-        user: post.profiles
+        user: {
+          username: post.profiles?.username || '',
+          full_name: post.profiles?.full_name || '',
+          avatar_url: post.profiles?.avatar_url || ''
+        }
       }));
       
       setPosts(postsWithUser);
@@ -223,11 +226,11 @@ export default function Profile() {
               <p className="text-sm text-muted-foreground">Posts</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-primary">{followersCount}</p>
+              <p className="text-xl font-bold text-primary">{profile.followers_count}</p>
               <p className="text-sm text-muted-foreground">Followers</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-primary">{followingCount}</p>
+              <p className="text-xl font-bold text-primary">{profile.following_count}</p>
               <p className="text-sm text-muted-foreground">Following</p>
             </div>
           </div>
@@ -302,7 +305,6 @@ export default function Profile() {
       <EditProfileModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        profile={profile}
         onProfileUpdate={fetchProfile}
       />
     </Layout>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -28,6 +29,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const previousMessagesLength = useRef(0);
   
   const { 
     conversations, 
@@ -44,10 +46,11 @@ export default function Chat() {
 
   // Auto-scroll to bottom when new messages arrive (only if user isn't scrolling)
   useEffect(() => {
-    if (!isUserScrolling) {
+    if (currentMessages && currentMessages.length > previousMessagesLength.current && !isUserScrolling) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [currentMessages, isUserScrolling]);
+    previousMessagesLength.current = currentMessages?.length || 0;
+  }, [currentMessages?.length, isUserScrolling]);
 
   // Handle scroll detection
   const handleScroll = () => {
@@ -80,6 +83,15 @@ export default function Chat() {
       fetchMessages(selectedConversationId);
     }
   }, [selectedConversationId, fetchMessages]);
+
+  // Auto-scroll to bottom when selecting a new conversation
+  useEffect(() => {
+    if (selectedConversationId && currentMessages) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [selectedConversationId]);
 
   const handleUserClick = async (userId: string) => {
     try {
@@ -127,6 +139,15 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
+      // Delete all messages in the conversation for this user
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', selectedConversationId);
+      
+      if (messagesError) throw messagesError;
+      
+      // Record the clear action
       await supabase.from('deleted_chats').insert({
         user_id: user.id,
         conversation_id: selectedConversationId,
@@ -134,7 +155,9 @@ export default function Chat() {
       });
       
       toast.success('Chat cleared successfully');
-      handleBackToUserList();
+      
+      // Refresh messages to show empty chat
+      await fetchMessages(selectedConversationId);
     } catch (error) {
       console.error('Error clearing chat:', error);
       toast.error('Failed to clear chat');
@@ -145,6 +168,7 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
+      // Record the delete action
       await supabase.from('deleted_chats').insert({
         user_id: user.id,
         conversation_id: selectedConversationId,
@@ -153,6 +177,10 @@ export default function Chat() {
       
       toast.success('Chat deleted successfully');
       handleBackToUserList();
+      
+      // Refresh conversations to remove from list
+      refreshConversations();
+      refreshRecentChats();
     } catch (error) {
       console.error('Error deleting chat:', error);
       toast.error('Failed to delete chat');

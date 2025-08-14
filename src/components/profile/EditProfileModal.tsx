@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -76,10 +77,12 @@ export default function EditProfileModal({ isOpen, onClose, onProfileUpdate }: E
       
       if (error) throw error;
       
+      toast.success('Profile updated successfully');
       onProfileUpdate();
       onClose();
     } catch (error) {
       console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
     } finally {
       setLoading(false);
     }
