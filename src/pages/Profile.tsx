@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import PostCard from '@/components/post/PostCard';
@@ -72,13 +73,13 @@ export default function Profile() {
       if (user && profileData && !isOwnProfile) {
         try {
           const { data, error } = await supabase
-            .from('followers')
+            .from('follows')
             .select('*')
             .eq('follower_id', user.id)
             .eq('following_id', profileData.user_id)
             .single();
 
-          if (error) throw error;
+          if (error && error.code !== 'PGRST116') throw error;
           setIsFollowing(!!data);
         } catch (error) {
           console.error("Error checking following status:", error);
@@ -91,14 +92,32 @@ export default function Profile() {
 
   const fetchUserPosts = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // First get the posts
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*, profiles(username, full_name, avatar_url, university)')
+        .select('*')
         .eq('user_id', userId)
-        .order('timestamp', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPosts(data || []);
+      if (postsError) throw postsError;
+
+      // Then get the profile data for the user
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('username, full_name, avatar_url, university')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Combine the data
+      const postsWithProfile: PostWithProfile[] = (postsData || []).map(post => ({
+        ...post,
+        timestamp: post.created_at,
+        profiles: profileData
+      }));
+
+      setPosts(postsWithProfile);
     } catch (error) {
       console.error("Error fetching user posts:", error);
     }
@@ -108,13 +127,41 @@ export default function Profile() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First get blocked user IDs
+      const { data: blockedData, error: blockedError } = await supabase
         .from('blocked_users')
-        .select('blocked_id, blocker_id, profiles(username, full_name)')
+        .select('blocked_id, blocker_id')
         .eq('blocker_id', user.id);
 
-      if (error) throw error;
-      setBlockedUsers(data || []);
+      if (blockedError) throw blockedError;
+
+      if (!blockedData || blockedData.length === 0) {
+        setBlockedUsers([]);
+        return;
+      }
+
+      // Get profile information for blocked users
+      const blockedUserIds = blockedData.map(item => item.blocked_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username, full_name')
+        .in('user_id', blockedUserIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const blockedUsersWithProfiles = blockedData.map(blockedItem => {
+        const profile = profilesData?.find(p => p.user_id === blockedItem.blocked_id);
+        return {
+          ...blockedItem,
+          profiles: profile ? {
+            username: profile.username,
+            full_name: profile.full_name
+          } : undefined
+        };
+      });
+
+      setBlockedUsers(blockedUsersWithProfiles);
     } catch (error) {
       console.error("Error fetching blocked users:", error);
     }
@@ -145,7 +192,7 @@ export default function Profile() {
       if (isFollowing) {
         // Unfollow
         const { error } = await supabase
-          .from('followers')
+          .from('follows')
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', profileData.user_id);
@@ -153,21 +200,15 @@ export default function Profile() {
         if (error) throw error;
         setIsFollowing(false);
         toast.success(`Unfollowed ${profileData.full_name || profileData.username}`);
-
-        // Update follower count
-        await supabase.rpc('decrement_follower', { user_id: profileData.user_id });
       } else {
         // Follow
         const { error } = await supabase
-          .from('followers')
+          .from('follows')
           .insert([{ follower_id: user.id, following_id: profileData.user_id }]);
 
         if (error) throw error;
         setIsFollowing(true);
         toast.success(`Followed ${profileData.full_name || profileData.username}`);
-
-        // Update follower count
-        await supabase.rpc('increment_follower', { user_id: profileData.user_id });
       }
 
       // Refresh profile data to update counts
