@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { X, MessageCircle, Heart, MapPin, Clock } from 'lucide-react';
+import { X, Heart, MapPin, Clock } from 'lucide-react';
 
 interface MarketplaceItem {
   id: string;
@@ -106,38 +106,11 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
 
             {/* Action buttons */}
             <div className="space-y-3 mb-6">
-              <Button className="w-full" size="lg">
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Contact Seller
-              </Button>
               <Button variant="outline" className="w-full" size="lg">
                 <Heart className="w-4 h-4 mr-2" />
                 Save to Favorites
               </Button>
             </div>
-
-            {/* Seller info */}
-            {item.profiles && (
-              <div className="pt-4 border-t border-border">
-                <h3 className="font-semibold text-foreground mb-3">Seller</h3>
-                <div className="flex items-center gap-3">
-                  <img
-                    src={item.profiles.avatar_url || '/placeholder.svg'}
-                    alt={item.profiles.full_name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
-                      {item.profiles.full_name || item.profiles.username}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Active seller</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    View Profile
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

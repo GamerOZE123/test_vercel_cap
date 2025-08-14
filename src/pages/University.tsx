@@ -90,7 +90,6 @@ export default function University() {
 
       {/* Quick Access Grid */}
       <div className="post-card">
-        <h2 className="text-lg md:text-xl font-bold text-foreground mb-4">Quick Access</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {navigationSections.slice(1).map((section) => {
             const IconComponent = section.icon;

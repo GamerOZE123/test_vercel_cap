@@ -35,7 +35,7 @@ export default function PostHeader({ user, timestamp, isOwnPost, onEdit, onDelet
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">{timestamp}</span>
-        {isOwnPost ? (
+        {isOwnPost && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -56,10 +56,6 @@ export default function PostHeader({ user, timestamp, isOwnPost, onEdit, onDelet
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
         )}
       </div>
     </div>
