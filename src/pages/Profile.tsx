@@ -33,7 +33,7 @@ interface Post {
   likes_count: number;
   comments_count: number;
   user_id: string;
-  profiles?: {
+  user_profile?: {
     username: string;
     full_name: string;
     avatar_url: string;
@@ -54,6 +54,14 @@ interface PostCardData {
   timestamp: string;
 }
 
+interface BlockedUser {
+  blocked_id: string;
+  profiles?: {
+    username: string;
+    full_name: string;
+  };
+}
+
 export default function Profile() {
   const { userId } = useParams();
   const navigate = useNavigate();
@@ -62,7 +70,7 @@ export default function Profile() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   
   const targetUserId = userId || user?.id;
   const isOwnProfile = user?.id === targetUserId;
@@ -92,11 +100,17 @@ export default function Profile() {
     try {
       const { data, error } = await supabase
         .from('blocked_users')
-        .select('blocked_id')
+        .select(`
+          blocked_id,
+          profiles:blocked_id (
+            username,
+            full_name
+          )
+        `)
         .eq('blocker_id', user.id);
       
       if (error) throw error;
-      setBlockedUsers(data.map(block => block.blocked_id));
+      setBlockedUsers(data || []);
     } catch (error) {
       console.error('Error fetching blocked users:', error);
     }
@@ -114,7 +128,7 @@ export default function Profile() {
       
       if (error) throw error;
       
-      setBlockedUsers(prev => prev.filter(id => id !== blockedUserId));
+      setBlockedUsers(prev => prev.filter(block => block.blocked_id !== blockedUserId));
       toast.success('User unblocked successfully');
     } catch (error) {
       console.error('Error unblocking user:', error);
@@ -144,22 +158,31 @@ export default function Profile() {
     if (!targetUserId) return;
     
     try {
-      const { data, error } = await supabase
+      // First get the posts
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles!inner (
-            username,
-            full_name,
-            avatar_url,
-            university
-          )
-        `)
+        .select('*')
         .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      setPosts(data || []);
+      if (postsError) throw postsError;
+
+      // Then get the profile for this user
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('username, full_name, avatar_url, university')
+        .eq('user_id', targetUserId)
+        .single();
+      
+      if (profileError) throw profileError;
+
+      // Combine the data
+      const postsWithProfile = (postsData || []).map(post => ({
+        ...post,
+        user_profile: profileData
+      }));
+
+      setPosts(postsWithProfile);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setPosts([]);
@@ -200,9 +223,9 @@ export default function Profile() {
       id: post.id,
       user_id: post.user_id,
       user: {
-        name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
-        avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
-        university: post.profiles?.university || ''
+        name: post.user_profile?.full_name || post.user_profile?.username || 'Unknown User',
+        avatar: post.user_profile?.full_name?.charAt(0) || post.user_profile?.username?.charAt(0) || 'U',
+        university: post.user_profile?.university || ''
       },
       content: post.content,
       image: post.image_url || undefined,
@@ -317,11 +340,13 @@ export default function Profile() {
             <div className="mt-6 pt-6 border-t">
               <h3 className="text-lg font-semibold mb-4">Blocked Users</h3>
               <div className="space-y-2">
-                {blockedUsers.map((blockedUserId) => (
-                  <div key={blockedUserId} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">User ID: {blockedUserId}</span>
+                {blockedUsers.map((blockedUser) => (
+                  <div key={blockedUser.blocked_id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-foreground">
+                      {blockedUser.profiles?.full_name || blockedUser.profiles?.username || `User ${blockedUser.blocked_id}`}
+                    </span>
                     <Button
-                      onClick={() => handleUnblock(blockedUserId)}
+                      onClick={() => handleUnblock(blockedUser.blocked_id)}
                       variant="outline"
                       size="sm"
                     >
