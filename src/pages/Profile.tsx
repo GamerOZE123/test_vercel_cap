@@ -5,7 +5,7 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Heart, MessageCircle, Settings, LogOut, UserPlus, UserMinus } from 'lucide-react';
+import { Heart, MessageCircle, Settings, LogOut, UserPlus, UserMinus, MoreHorizontal, Trash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import PostCard from '@/components/post/PostCard';
@@ -33,11 +33,25 @@ interface Post {
   likes_count: number;
   comments_count: number;
   user_id: string;
-  user?: {
+  profiles?: {
     username: string;
     full_name: string;
     avatar_url: string;
+    university: string;
   };
+}
+
+interface PostCardData {
+  id: string;
+  user_id?: string;
+  user: {
+    name: string;
+    avatar: string;
+    university: string;
+  };
+  content: string;
+  image?: string;
+  timestamp: string;
 }
 
 export default function Profile() {
@@ -48,6 +62,7 @@ export default function Profile() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   
   const targetUserId = userId || user?.id;
   const isOwnProfile = user?.id === targetUserId;
@@ -68,6 +83,42 @@ export default function Profile() {
     } catch (error) {
       console.error('Error signing out:', error);
       toast.error('Failed to sign out');
+    }
+  };
+
+  const fetchBlockedUsers = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('blocked_id')
+        .eq('blocker_id', user.id);
+      
+      if (error) throw error;
+      setBlockedUsers(data.map(block => block.blocked_id));
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
+    }
+  };
+
+  const handleUnblock = async (blockedUserId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', blockedUserId);
+      
+      if (error) throw error;
+      
+      setBlockedUsers(prev => prev.filter(id => id !== blockedUserId));
+      toast.success('User unblocked successfully');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      toast.error('Failed to unblock user');
     }
   };
 
@@ -97,29 +148,21 @@ export default function Profile() {
         .from('posts')
         .select(`
           *,
-          profiles!posts_user_id_fkey (
+          profiles!inner (
             username,
             full_name,
-            avatar_url
+            avatar_url,
+            university
           )
         `)
         .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      
-      const postsWithUser = data.map(post => ({
-        ...post,
-        user: {
-          username: post.profiles?.username || '',
-          full_name: post.profiles?.full_name || '',
-          avatar_url: post.profiles?.avatar_url || ''
-        }
-      }));
-      
-      setPosts(postsWithUser);
+      setPosts(data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -130,7 +173,10 @@ export default function Profile() {
       setLoading(true);
       Promise.all([fetchProfile(), fetchUserPosts()]);
     }
-  }, [targetUserId]);
+    if (user && isOwnProfile) {
+      fetchBlockedUsers();
+    }
+  }, [targetUserId, user, isOwnProfile]);
 
   const handleStartChat = async () => {
     if (!targetUserId || !user) return;
@@ -147,6 +193,21 @@ export default function Profile() {
       console.error('Error starting chat:', error);
       toast.error('Failed to start chat');
     }
+  };
+
+  const transformPostsForPostCard = (posts: Post[]): PostCardData[] => {
+    return posts.map(post => ({
+      id: post.id,
+      user_id: post.user_id,
+      user: {
+        name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
+        avatar: post.profiles?.full_name?.charAt(0) || post.profiles?.username?.charAt(0) || 'U',
+        university: post.profiles?.university || ''
+      },
+      content: post.content,
+      image: post.image_url || undefined,
+      timestamp: new Date(post.created_at).toLocaleDateString()
+    }));
   };
 
   if (loading) {
@@ -196,23 +257,6 @@ export default function Profile() {
                 )}
               </div>
             </div>
-            
-            {/* Settings Icon (only on own profile) */}
-            {isOwnProfile && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
 
           {profile.bio && (
@@ -267,6 +311,27 @@ export default function Profile() {
               </>
             )}
           </div>
+
+          {/* Blocked Users Section - Only for own profile */}
+          {isOwnProfile && blockedUsers.length > 0 && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="text-lg font-semibold mb-4">Blocked Users</h3>
+              <div className="space-y-2">
+                {blockedUsers.map((blockedUserId) => (
+                  <div key={blockedUserId} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">User ID: {blockedUserId}</span>
+                    <Button
+                      onClick={() => handleUnblock(blockedUserId)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Unblock
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Posts */}
@@ -278,7 +343,7 @@ export default function Profile() {
           
           <TabsContent value="posts" className="space-y-4 mt-6">
             {posts.length > 0 ? (
-              posts.map((post) => (
+              transformPostsForPostCard(posts).map((post) => (
                 <PostCard key={post.id} post={post} />
               ))
             ) : (
