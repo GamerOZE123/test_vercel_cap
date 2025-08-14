@@ -1,18 +1,20 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
 import UserSearch from '@/components/chat/UserSearch';
 import MobileChatHeader from '@/components/chat/MobileChatHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, ArrowLeft } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Send, ArrowLeft, MoreVertical, Trash2, MessageSquareX, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/hooks/useChat';
 import { useRecentChats } from '@/hooks/useRecentChats';
 import { useUsers } from '@/hooks/useUsers';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -22,6 +24,10 @@ export default function Chat() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showUserList, setShowUserList] = useState(true);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
   const { 
     conversations, 
@@ -29,11 +35,44 @@ export default function Chat() {
     loading: chatLoading,
     fetchMessages,
     sendMessage, 
-    createConversation
+    createConversation,
+    refreshConversations
   } = useChat();
   
-  const { recentChats, addRecentChat } = useRecentChats();
+  const { recentChats, addRecentChat, refreshRecentChats } = useRecentChats();
   const { getUserById } = useUsers();
+
+  // Auto-scroll to bottom when new messages arrive (only if user isn't scrolling)
+  useEffect(() => {
+    if (!isUserScrolling) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [currentMessages, isUserScrolling]);
+
+  // Handle scroll detection
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      
+      if (!isAtBottom) {
+        setIsUserScrolling(true);
+        // Clear existing timeout
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        // Reset scrolling state after 3 seconds of no scrolling
+        scrollTimeoutRef.current = setTimeout(() => {
+          setIsUserScrolling(false);
+        }, 3000);
+      } else {
+        setIsUserScrolling(false);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      }
+    }
+  };
 
   // Fetch messages when conversation is selected
   useEffect(() => {
@@ -66,6 +105,9 @@ export default function Chat() {
     try {
       await sendMessage(selectedConversationId, newMessage);
       setNewMessage('');
+      // Refresh conversations and recent chats to update order
+      refreshConversations();
+      refreshRecentChats();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -79,6 +121,59 @@ export default function Chat() {
 
   const handleUsernameClick = (userId: string) => {
     navigate(`/profile/${userId}`);
+  };
+
+  const handleClearChat = async () => {
+    if (!selectedConversationId || !user) return;
+    
+    try {
+      await supabase.from('deleted_chats').insert({
+        user_id: user.id,
+        conversation_id: selectedConversationId,
+        reason: 'cleared'
+      });
+      
+      toast.success('Chat cleared successfully');
+      handleBackToUserList();
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      toast.error('Failed to clear chat');
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!selectedConversationId || !user) return;
+    
+    try {
+      await supabase.from('deleted_chats').insert({
+        user_id: user.id,
+        conversation_id: selectedConversationId,
+        reason: 'deleted'
+      });
+      
+      toast.success('Chat deleted successfully');
+      handleBackToUserList();
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      toast.error('Failed to delete chat');
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!selectedUser?.user_id || !user) return;
+    
+    try {
+      await supabase.from('blocked_users').insert({
+        blocker_id: user.id,
+        blocked_id: selectedUser.user_id
+      });
+      
+      toast.success('User blocked successfully');
+      handleBackToUserList();
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      toast.error('Failed to block user');
+    }
   };
 
   // Desktop Layout
@@ -119,25 +214,54 @@ export default function Chat() {
             {selectedUser ? (
               <>
                 <div className="p-6 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-white">
-                        {selectedUser.full_name?.charAt(0) || selectedUser.username?.charAt(0) || 'U'}
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                        <span className="text-sm font-bold text-white">
+                          {selectedUser.full_name?.charAt(0) || selectedUser.username?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 
+                          className="font-semibold text-foreground cursor-pointer hover:text-primary"
+                          onClick={() => handleUsernameClick(selectedUser.user_id)}
+                        >
+                          {selectedUser.full_name || selectedUser.username}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{selectedUser.university}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 
-                        className="font-semibold text-foreground cursor-pointer hover:text-primary"
-                        onClick={() => handleUsernameClick(selectedUser.user_id)}
-                      >
-                        {selectedUser.full_name || selectedUser.username}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">{selectedUser.university}</p>
-                    </div>
+                    
+                    {/* Chat Options */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleClearChat}>
+                          <MessageSquareX className="w-4 h-4 mr-2" />
+                          Clear Chat
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDeleteChat}>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Chat
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleBlockUser} className="text-destructive">
+                          <UserX className="w-4 h-4 mr-2" />
+                          Block User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 
-                <div className="flex-1 p-6 overflow-y-auto space-y-4">
+                <div 
+                  ref={messagesContainerRef}
+                  onScroll={handleScroll}
+                  className="flex-1 p-6 overflow-y-auto space-y-4"
+                >
                   {currentMessages && currentMessages.map((message) => (
                     <div
                       key={message.id}
@@ -161,6 +285,7 @@ export default function Chat() {
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 <div className="p-6 border-t border-border">
@@ -235,9 +360,16 @@ export default function Chat() {
             userName={selectedUser?.full_name || selectedUser?.username || 'Unknown User'}
             userUniversity={selectedUser?.university || 'University'}
             onBackClick={handleBackToUserList}
+            onClearChat={handleClearChat}
+            onDeleteChat={handleDeleteChat}
+            onBlockUser={handleBlockUser}
           />
           
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20">
+          <div 
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20"
+          >
             {currentMessages && currentMessages.map((message) => (
               <div
                 key={message.id}
@@ -261,6 +393,7 @@ export default function Chat() {
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">

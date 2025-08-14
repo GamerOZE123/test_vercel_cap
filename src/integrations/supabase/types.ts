@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -88,6 +88,27 @@ export type Database = {
           title?: string
           user_id?: string
           winner_id?: string | null
+        }
+        Relationships: []
+      }
+      blocked_users: {
+        Row: {
+          blocked_at: string
+          blocked_id: string
+          blocker_id: string
+          id: string
+        }
+        Insert: {
+          blocked_at?: string
+          blocked_id: string
+          blocker_id: string
+          id?: string
+        }
+        Update: {
+          blocked_at?: string
+          blocked_id?: string
+          blocker_id?: string
+          id?: string
         }
         Relationships: []
       }
@@ -224,6 +245,30 @@ export type Database = {
           created_at?: string
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      deleted_chats: {
+        Row: {
+          conversation_id: string
+          deleted_at: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          deleted_at?: string
+          id?: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          deleted_at?: string
+          id?: string
+          reason?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -655,13 +700,13 @@ export type Database = {
     Functions: {
       create_notification: {
         Args: {
-          target_user_id: string
-          notification_type: string
-          notification_title: string
-          notification_message: string
-          sender_user_id?: string
-          post_id?: string
           comment_id?: string
+          notification_message: string
+          notification_title: string
+          notification_type: string
+          post_id?: string
+          sender_user_id?: string
+          target_user_id: string
         }
         Returns: string
       }
@@ -672,23 +717,23 @@ export type Database = {
       get_recent_chats: {
         Args: { target_user_id: string }
         Returns: {
+          last_interacted_at: string
+          other_user_avatar: string
           other_user_id: string
           other_user_name: string
-          other_user_avatar: string
           other_user_university: string
-          last_interacted_at: string
         }[]
       }
       get_user_conversations: {
         Args: { target_user_id: string }
         Returns: {
           conversation_id: string
-          other_user_id: string
-          other_user_name: string
-          other_user_avatar: string
-          other_user_university: string
           last_message: string
           last_message_time: string
+          other_user_avatar: string
+          other_user_id: string
+          other_user_name: string
+          other_user_university: string
           unread_count: number
         }[]
       }
@@ -697,7 +742,7 @@ export type Database = {
         Returns: undefined
       }
       user_in_conversation: {
-        Args: { conv_id: string; check_user_id: string }
+        Args: { check_user_id: string; conv_id: string }
         Returns: boolean
       }
     }
