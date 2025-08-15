@@ -1,12 +1,13 @@
 
 import React from 'react';
-import { Home, MessageCircle, User, Search } from 'lucide-react';
+import { Home, MessageCircle, User, Search, GraduationCap } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Explore', href: '/explore', icon: Search },
+  { name: 'University', href: '/university', icon: GraduationCap },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Profile', href: '/profile', icon: User },
 ];
@@ -16,7 +17,7 @@ export default function MobileNavigation() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden">
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-5 h-16">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
