@@ -45,12 +45,12 @@ export default function Home() {
     try {
       console.log('Fetching posts...');
       
-      // Get all posts with profile information using inner join
+      // Get all posts with profile information using the foreign key constraint
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
         .select(`
           *,
-          profiles!inner (
+          profiles!posts_user_id_fkey (
             full_name,
             username,
             university,
