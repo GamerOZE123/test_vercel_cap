@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PostHeader from './PostHeader';
 import PostContent from './PostContent';
 import PostActions from './PostActions';
@@ -24,10 +25,18 @@ interface PostCardProps {
   showEditOption?: boolean;
   onEdit?: (postId: string) => void;
   onDelete?: (postId: string) => void;
+  clickable?: boolean;
 }
 
-export default function PostCard({ post, showEditOption = false, onEdit, onDelete }: PostCardProps) {
+export default function PostCard({ 
+  post, 
+  showEditOption = false, 
+  onEdit, 
+  onDelete,
+  clickable = true 
+}: PostCardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   
   const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
@@ -38,8 +47,28 @@ export default function PostCard({ post, showEditOption = false, onEdit, onDelet
   const handleEdit = () => onEdit?.(post.id);
   const handleDelete = () => onDelete?.(post.id);
 
+  const handlePostClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') || 
+      target.closest('a') || 
+      target.closest('[role="button"]') ||
+      !clickable
+    ) {
+      return;
+    }
+    
+    navigate(`/post/${post.id}`);
+  };
+
   return (
-    <div className="md:bg-card md:border md:border-border md:rounded-2xl p-4 md:p-6 space-y-4 border-b border-border md:border-b-0">
+    <div 
+      className={`md:bg-card md:border md:border-border md:rounded-2xl p-4 md:p-6 space-y-4 border-b border-border md:border-b-0 ${
+        clickable ? 'cursor-pointer hover:bg-surface/50 transition-colors' : ''
+      }`}
+      onClick={handlePostClick}
+    >
       <PostHeader
         user={post.user}
         timestamp={post.timestamp}
