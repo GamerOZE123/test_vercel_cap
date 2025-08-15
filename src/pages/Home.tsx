@@ -45,12 +45,12 @@ export default function Home() {
     try {
       console.log('Fetching posts...');
       
-      // Get all posts with profile information in a single query
+      // Get all posts with profile information using proper join syntax
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
         .select(`
           *,
-          profiles:user_id (
+          profiles (
             full_name,
             username,
             university,
@@ -77,7 +77,7 @@ export default function Home() {
       const transformedPosts = postsData.map((post) => {
         const profile = post.profiles;
         
-        // Create user display data with proper fallbacks
+        // Create user display data with proper fallbacks  
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
         const userAvatar = userName.charAt(0).toUpperCase();
         const userUniversity = profile?.university || 'University';
