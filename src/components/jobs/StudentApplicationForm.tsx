@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -240,27 +239,48 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
     setLoading(true);
 
     try {
-      // Update or create student profile
-      const { error: profileError } = await supabase
+      // Check if student profile exists
+      const { data: existingProfile } = await supabase
         .from('student_profiles')
-        .upsert({
-          user_id: user.id,
-          skills,
-          certificates: certifications,
-          linkedin_url: personalInfo.linkedin_url,
-          github_url: personalInfo.github_url,
-          portfolio_url: personalInfo.portfolio_url,
-          education,
-          work_experience: experience,
-          preferred_location: personalInfo.location,
-          additional_details: {
-            personal_info: personalInfo,
-            projects,
-            languages
-          }
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      if (profileError) throw profileError;
+      if (existingProfile) {
+        // Update existing profile
+        const { error: profileError } = await supabase
+          .from('student_profiles')
+          .update({
+            skills,
+            certificates: certifications,
+            linkedin_url: personalInfo.linkedin_url,
+            github_url: personalInfo.github_url,
+            portfolio_url: personalInfo.portfolio_url,
+            education,
+            work_experience: experience,
+            preferred_location: personalInfo.location,
+          })
+          .eq('user_id', user.id);
+
+        if (profileError) throw profileError;
+      } else {
+        // Insert new profile
+        const { error: profileError } = await supabase
+          .from('student_profiles')
+          .insert({
+            user_id: user.id,
+            skills,
+            certificates: certifications,
+            linkedin_url: personalInfo.linkedin_url,
+            github_url: personalInfo.github_url,
+            portfolio_url: personalInfo.portfolio_url,
+            education,
+            work_experience: experience,
+            preferred_location: personalInfo.location,
+          });
+
+        if (profileError) throw profileError;
+      }
 
       // Update main profile
       const { error: mainProfileError } = await supabase
