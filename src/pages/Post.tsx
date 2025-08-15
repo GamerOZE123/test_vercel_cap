@@ -26,15 +26,15 @@ interface PostData {
 
 interface TransformedPost {
   id: string;
-  user_id: string;
-  user: {
-    name: string;
-    avatar: string;
-    university: string;
-  };
   content: string;
-  image?: string;
-  timestamp: string;
+  image_url?: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  user_id: string;
+  user_name: string;
+  user_username: string;
+  user_university?: string;
 }
 
 export default function Post() {
@@ -88,20 +88,20 @@ export default function Post() {
       
       // Transform the post data
       const userName = profileData?.full_name || profileData?.username || 'Anonymous User';
-      const userAvatar = userName.charAt(0).toUpperCase();
+      const userUsername = profileData?.username || 'user';
       const userUniversity = profileData?.university || 'University';
       
       const transformedPost: TransformedPost = {
         id: postData.id,
-        user_id: postData.user_id,
-        user: {
-          name: userName,
-          avatar: userAvatar,
-          university: userUniversity
-        },
         content: postData.content || '',
-        image: postData.image_url,
-        timestamp: new Date(postData.created_at).toLocaleDateString()
+        image_url: postData.image_url,
+        created_at: postData.created_at,
+        likes_count: postData.likes_count || 0,
+        comments_count: postData.comments_count || 0,
+        user_id: postData.user_id,
+        user_name: userName,
+        user_username: userUsername,
+        user_university: userUniversity
       };
       
       setPost(transformedPost);

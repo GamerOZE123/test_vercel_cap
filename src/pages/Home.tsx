@@ -25,15 +25,15 @@ interface PostData {
 
 interface TransformedPost {
   id: string;
-  user_id: string;
-  user: {
-    name: string;
-    avatar: string;
-    university: string;
-  };
   content: string;
-  image?: string;
-  timestamp: string;
+  image_url?: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  user_id: string;
+  user_name: string;
+  user_username: string;
+  user_university?: string;
 }
 
 export default function Home() {
@@ -87,25 +87,25 @@ export default function Home() {
       });
       
       // Transform posts data with profile information
-      const transformedPosts = postsData.map((post) => {
+      const transformedPosts: TransformedPost[] = postsData.map((post) => {
         const profile = profilesMap.get(post.user_id);
         
         // Create user display data with proper fallbacks  
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
-        const userAvatar = userName.charAt(0).toUpperCase();
+        const userUsername = profile?.username || 'user';
         const userUniversity = profile?.university || 'University';
         
         return {
           id: post.id,
-          user_id: post.user_id,
-          user: {
-            name: userName,
-            avatar: userAvatar,
-            university: userUniversity
-          },
           content: post.content || '',
-          image: post.image_url,
-          timestamp: new Date(post.created_at).toLocaleDateString()
+          image_url: post.image_url,
+          created_at: post.created_at,
+          likes_count: post.likes_count || 0,
+          comments_count: post.comments_count || 0,
+          user_id: post.user_id,
+          user_name: userName,
+          user_username: userUsername,
+          user_university: userUniversity
         };
       });
       

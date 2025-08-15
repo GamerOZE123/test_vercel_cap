@@ -40,20 +40,25 @@ export default function PostCard({ post }: PostCardProps) {
     setShowComments(!showComments);
   };
 
+  // Create user object for PostHeader
+  const userForHeader = {
+    name: post.user_name || 'Anonymous User',
+    avatar: (post.user_name || 'A').charAt(0).toUpperCase(),
+    university: post.user_university || 'University'
+  };
+
   return (
     <Card className="bg-card border-border">
       <div className="p-6">
         <PostHeader
-          userName={post.user_name}
-          userUsername={post.user_username}
-          userUniversity={post.user_university}
-          createdAt={post.created_at}
-          userId={post.user_id}
+          user={userForHeader}
+          timestamp={new Date(post.created_at).toLocaleDateString()}
+          isOwnPost={false}
         />
         
         <PostContent
           content={post.content}
-          imageUrl={post.image_url}
+          image={post.image_url}
         />
         
         <PostActions
