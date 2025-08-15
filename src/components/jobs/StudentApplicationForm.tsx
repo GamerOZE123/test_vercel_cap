@@ -256,8 +256,8 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
             linkedin_url: personalInfo.linkedin_url,
             github_url: personalInfo.github_url,
             portfolio_url: personalInfo.portfolio_url,
-            education,
-            work_experience: experience,
+            education: education as any,
+            work_experience: experience as any,
             preferred_location: personalInfo.location,
           })
           .eq('user_id', user.id);
@@ -274,8 +274,8 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
             linkedin_url: personalInfo.linkedin_url,
             github_url: personalInfo.github_url,
             portfolio_url: personalInfo.portfolio_url,
-            education,
-            work_experience: experience,
+            education: education as any,
+            work_experience: experience as any,
             preferred_location: personalInfo.location,
           });
 
