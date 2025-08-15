@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,8 +31,12 @@ export const useComments = (postId: string) => {
       const { data, error } = await supabase
         .from('comments')
         .select(`
-          *,
-          profiles!inner (
+          id,
+          content,
+          created_at,
+          user_id,
+          post_id,
+          profiles!comments_user_id_fkey (
             full_name,
             username,
             avatar_url
@@ -45,14 +48,21 @@ export const useComments = (postId: string) => {
       if (error) throw error;
       
       console.log('Fetched comments:', data);
-      setComments(data || []);
-      setCommentsCount(data?.length || 0);
+      
+      // Transform the data to match our interface
+      const transformedComments = data?.map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
+      })) || [];
+      
+      setComments(transformedComments);
+      setCommentsCount(transformedComments.length);
 
       // Update post comments count
-      if (data) {
+      if (transformedComments) {
         const { error: updateError } = await supabase
           .from('posts')
-          .update({ comments_count: data.length })
+          .update({ comments_count: transformedComments.length })
           .eq('id', postId);
 
         if (updateError) console.error('Error updating comments count:', updateError);
@@ -80,8 +90,12 @@ export const useComments = (postId: string) => {
           user_id: user.id
         })
         .select(`
-          *,
-          profiles!inner (
+          id,
+          content,
+          created_at,
+          user_id,
+          post_id,
+          profiles!comments_user_id_fkey (
             full_name,
             username,
             avatar_url
@@ -95,7 +109,14 @@ export const useComments = (postId: string) => {
       }
       
       console.log('Comment added successfully:', data);
-      setComments(prev => [...prev, data]);
+      
+      // Transform the data to match our interface
+      const transformedComment = {
+        ...data,
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
+      };
+      
+      setComments(prev => [...prev, transformedComment]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;
