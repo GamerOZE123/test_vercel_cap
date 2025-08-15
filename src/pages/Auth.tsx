@@ -33,7 +33,7 @@ export default function Auth() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        navigate('/');
+        navigate('/home');
       }
     };
     checkUser();
@@ -62,7 +62,7 @@ export default function Auth() {
       if (error) throw error;
 
       if (data.user) {
-        navigate('/');
+        navigate('/home');
       }
     } catch (error: any) {
       setError(error.message || 'Login failed. Please try again.');
@@ -94,7 +94,7 @@ export default function Auth() {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/home`,
           data: {
             full_name: formData.name,
             university: userType === 'student' ? formData.university : undefined,
@@ -164,7 +164,7 @@ export default function Auth() {
       if (error) throw error;
 
       setMessage('Password updated successfully! Redirecting...');
-      setTimeout(() => navigate('/'), 2000);
+      setTimeout(() => navigate('/home'), 2000);
     } catch (error: any) {
       setError(error.message || 'Failed to reset password. Please try again.');
     } finally {
