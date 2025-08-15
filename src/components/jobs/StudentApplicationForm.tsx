@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,12 +118,12 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
           portfolio_url: studentProfile.portfolio_url || ''
         }));
         
-        if (studentProfile.education) {
-          setEducation(studentProfile.education);
+        if (studentProfile.education && Array.isArray(studentProfile.education)) {
+          setEducation(studentProfile.education as Education[]);
         }
         
-        if (studentProfile.work_experience) {
-          setExperience(studentProfile.work_experience);
+        if (studentProfile.work_experience && Array.isArray(studentProfile.work_experience)) {
+          setExperience(studentProfile.work_experience as Experience[]);
         }
       }
     } catch (error) {
@@ -132,7 +131,7 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
     }
   };
 
-  const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setPersonalInfo({
       ...personalInfo,
