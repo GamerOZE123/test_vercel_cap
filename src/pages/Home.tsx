@@ -45,10 +45,19 @@ export default function Home() {
     try {
       console.log('Fetching posts...');
       
-      // First get all posts
+      // Get all posts with profile information in a single query
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            username,
+            university,
+            major,
+            avatar_url
+          )
+        `)
         .order('created_at', { ascending: false });
       
       if (postsError) {
@@ -64,31 +73,9 @@ export default function Home() {
         return;
       }
       
-      // Get unique user IDs from posts
-      const userIds = [...new Set(postsData.map(post => post.user_id))];
-      
-      // Fetch profiles for these users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, username, university, major, avatar_url')
-        .in('user_id', userIds);
-      
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw profilesError;
-      }
-      
-      console.log('Fetched profiles:', profilesData);
-      
-      // Create a map of user_id to profile
-      const profilesMap = new Map();
-      profilesData?.forEach(profile => {
-        profilesMap.set(profile.user_id, profile);
-      });
-      
       // Transform posts data with profile information
       const transformedPosts = postsData.map((post) => {
-        const profile = profilesMap.get(post.user_id);
+        const profile = post.profiles;
         
         // Create user display data with proper fallbacks
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
@@ -166,8 +153,16 @@ export default function Home() {
               <PostCard key={post.id} post={post} />
             ))
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No posts yet. Start by uploading a file!</p>
+            <div className="post-card text-center py-12">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Welcome to the Community!
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                No posts yet. Be the first to share something with your community!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Click the + button below to create your first post.
+              </p>
             </div>
           )}
         </div>

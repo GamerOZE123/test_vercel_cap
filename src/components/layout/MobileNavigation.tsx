@@ -5,7 +5,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Home', href: '/', icon: Home },
+  { name: 'Home', href: '/home', icon: Home },
   { name: 'Explore', href: '/explore', icon: Search },
   { name: 'University', href: '/university', icon: GraduationCap },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
