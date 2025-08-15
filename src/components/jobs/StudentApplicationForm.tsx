@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,11 +120,11 @@ export default function StudentApplicationForm({ onComplete, onCancel }: Student
         }));
         
         if (studentProfile.education && Array.isArray(studentProfile.education)) {
-          setEducation(studentProfile.education as Education[]);
+          setEducation(studentProfile.education as unknown as Education[]);
         }
         
         if (studentProfile.work_experience && Array.isArray(studentProfile.work_experience)) {
-          setExperience(studentProfile.work_experience as Experience[]);
+          setExperience(studentProfile.work_experience as unknown as Experience[]);
         }
       }
     } catch (error) {
