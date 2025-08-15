@@ -21,6 +21,7 @@ export const useComments = (postId: string) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
 
   const fetchComments = async () => {
@@ -34,7 +35,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles (
+          profiles!comments_user_id_fkey (
             full_name,
             username,
             avatar_url
@@ -46,14 +47,23 @@ export const useComments = (postId: string) => {
       if (error) throw error;
       
       console.log('Fetched comments:', data);
-      setComments(data || []);
-      setCommentsCount(data?.length || 0);
+      
+      // Transform the data to ensure profiles is a single object or null
+      const transformedComments: Comment[] = (data || []).map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) 
+          ? comment.profiles[0] || null 
+          : comment.profiles
+      }));
+      
+      setComments(transformedComments);
+      setCommentsCount(transformedComments.length);
 
       // Update post comments count
-      if (data) {
+      if (transformedComments) {
         const { error: updateError } = await supabase
           .from('posts')
-          .update({ comments_count: data.length })
+          .update({ comments_count: transformedComments.length })
           .eq('id', postId);
 
         if (updateError) console.error('Error updating comments count:', updateError);
@@ -68,6 +78,7 @@ export const useComments = (postId: string) => {
   const addComment = async (content: string) => {
     if (!user || !content.trim()) return false;
 
+    setSubmitting(true);
     try {
       console.log('Adding comment:', { postId, content, userId: user.id });
       
@@ -84,7 +95,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles (
+          profiles!comments_user_id_fkey (
             full_name,
             username,
             avatar_url
@@ -99,13 +110,54 @@ export const useComments = (postId: string) => {
       }
       
       console.log('Comment added successfully:', data);
-      setComments(prev => [...prev, data]);
+      
+      // Transform the data to ensure profiles is a single object or null
+      const transformedComment: Comment = {
+        ...data,
+        profiles: Array.isArray(data.profiles) 
+          ? data.profiles[0] || null 
+          : data.profiles
+      };
+      
+      setComments(prev => [...prev, transformedComment]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteComment = async (commentId: string) => {
+    if (!user) return false;
+
+    try {
+      console.log('Deleting comment:', commentId);
+      
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('user_id', user.id);
+      
+      if (error) {
+        console.error('Error deleting comment:', error);
+        toast.error('Failed to delete comment');
+        return false;
+      }
+      
+      console.log('Comment deleted successfully');
+      setComments(prev => prev.filter(comment => comment.id !== commentId));
+      setCommentsCount(prev => prev - 1);
+      toast.success('Comment deleted!');
+      return true;
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      toast.error('Failed to delete comment');
       return false;
     }
   };
@@ -119,8 +171,10 @@ export const useComments = (postId: string) => {
   return {
     comments,
     loading,
+    submitting,
     commentsCount,
     addComment,
+    deleteComment,
     refreshComments: fetchComments
   };
 };
