@@ -201,6 +201,56 @@ export type Database = {
         }
         Relationships: []
       }
+      company_profiles: {
+        Row: {
+          company_description: string | null
+          company_name: string
+          company_size: string | null
+          created_at: string
+          headquarters: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          updated_at: string
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          company_description?: string | null
+          company_name: string
+          company_size?: string | null
+          created_at?: string
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          company_description?: string | null
+          company_name?: string
+          company_size?: string | null
+          created_at?: string
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -384,6 +434,143 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      job_applications: {
+        Row: {
+          applied_at: string
+          id: string
+          job_id: string
+          status: string | null
+          student_id: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          job_id: string
+          status?: string | null
+          student_id: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          job_id?: string
+          status?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      job_swipes: {
+        Row: {
+          id: string
+          job_id: string
+          student_id: string
+          swipe_direction: string
+          swiped_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          student_id: string
+          swipe_direction: string
+          swiped_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          student_id?: string
+          swipe_direction?: string
+          swiped_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_swipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_swipes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          application_deadline: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          experience_level: string | null
+          id: string
+          is_active: boolean | null
+          job_type: string | null
+          location: string | null
+          requirements: string | null
+          salary_range: string | null
+          skills_required: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          application_deadline?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          experience_level?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          requirements?: string | null
+          salary_range?: string | null
+          skills_required?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          application_deadline?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          experience_level?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          requirements?: string | null
+          salary_range?: string | null
+          skills_required?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       likes: {
         Row: {
@@ -622,6 +809,7 @@ export type Database = {
           university: string | null
           updated_at: string
           user_id: string
+          user_type: Database["public"]["Enums"]["user_type"] | null
           username: string
         }
         Insert: {
@@ -636,6 +824,7 @@ export type Database = {
           university?: string | null
           updated_at?: string
           user_id: string
+          user_type?: Database["public"]["Enums"]["user_type"] | null
           username: string
         }
         Update: {
@@ -650,6 +839,7 @@ export type Database = {
           university?: string | null
           updated_at?: string
           user_id?: string
+          user_type?: Database["public"]["Enums"]["user_type"] | null
           username?: string
         }
         Relationships: []
@@ -693,6 +883,68 @@ export type Database = {
           },
         ]
       }
+      student_profiles: {
+        Row: {
+          certificates: string[] | null
+          created_at: string
+          education: Json | null
+          experience_level: string | null
+          github_url: string | null
+          id: string
+          linkedin_url: string | null
+          portfolio_url: string | null
+          preferred_job_types: string[] | null
+          preferred_location: string | null
+          resume_url: string | null
+          skills: string[] | null
+          updated_at: string
+          user_id: string
+          work_experience: Json | null
+        }
+        Insert: {
+          certificates?: string[] | null
+          created_at?: string
+          education?: Json | null
+          experience_level?: string | null
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          portfolio_url?: string | null
+          preferred_job_types?: string[] | null
+          preferred_location?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          updated_at?: string
+          user_id: string
+          work_experience?: Json | null
+        }
+        Update: {
+          certificates?: string[] | null
+          created_at?: string
+          education?: Json | null
+          experience_level?: string | null
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          portfolio_url?: string | null
+          preferred_job_types?: string[] | null
+          preferred_location?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          updated_at?: string
+          user_id?: string
+          work_experience?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -724,6 +976,20 @@ export type Database = {
           other_user_university: string
         }[]
       }
+      get_unswiped_jobs_for_student: {
+        Args: { student_user_id: string }
+        Returns: {
+          company_logo: string
+          company_name: string
+          description: string
+          job_id: string
+          job_type: string
+          location: string
+          salary_range: string
+          skills_required: string[]
+          title: string
+        }[]
+      }
       get_user_conversations: {
         Args: { target_user_id: string }
         Returns: {
@@ -747,7 +1013,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_type: "student" | "company"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -874,6 +1140,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_type: ["student", "company"],
+    },
   },
 } as const

@@ -1,14 +1,44 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
-import { GraduationCap, Gavel, ShoppingBag, Calendar, Users } from 'lucide-react';
+import { GraduationCap, Gavel, ShoppingBag, Calendar, Users, Briefcase, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function University() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [userType, setUserType] = useState<'student' | 'company'>('student');
+  const [loading, setLoading] = useState(true);
 
-  const quickActions = [
+  useEffect(() => {
+    const fetchUserType = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) throw error;
+        if (data) {
+          setUserType(data.user_type || 'student');
+        }
+      } catch (error) {
+        console.error('Error fetching user type:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserType();
+  }, [user]);
+
+  const studentActions = [
     {
       name: 'Auctions',
       description: 'Bid on items from fellow students',
@@ -24,6 +54,13 @@ export default function University() {
       color: 'from-green-500 to-green-600'
     },
     {
+      name: 'Jobs & Internships',
+      description: 'Find your dream job or internship',
+      icon: Briefcase,
+      path: '/jobs',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
       name: 'Holidays',
       description: 'Campus holiday events',
       icon: Calendar,
@@ -35,9 +72,38 @@ export default function University() {
       description: 'Join student organizations',
       icon: Users,
       path: '/clubs',
-      color: 'from-blue-500 to-blue-600'
+      color: 'from-indigo-500 to-indigo-600'
     }
   ];
+
+  const companyActions = [
+    {
+      name: 'Jobs & Internships',
+      description: 'Post jobs and find talented students',
+      icon: Briefcase,
+      path: '/jobs',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      name: 'Advertising',
+      description: 'Promote your company to students',
+      icon: TrendingUp,
+      path: '/advertising',
+      color: 'from-green-500 to-green-600'
+    }
+  ];
+
+  const quickActions = userType === 'student' ? studentActions : companyActions;
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -75,7 +141,9 @@ export default function University() {
 
         {/* Quick Access */}
         <div className="post-card">
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-4">Quick Access</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-4">
+            {userType === 'student' ? 'Quick Access' : 'Company Dashboard'}
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {quickActions.map((action) => (
               <Button

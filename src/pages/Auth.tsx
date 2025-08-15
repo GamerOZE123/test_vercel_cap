@@ -1,20 +1,22 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { GraduationCap, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { GraduationCap, Mail, Lock, User, ArrowLeft, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
 type AuthMode = 'login' | 'signup' | 'forgot' | 'reset';
+type UserType = 'student' | 'company';
 
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>('login');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [userType, setUserType] = useState<UserType>('student');
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -22,7 +24,8 @@ export default function Auth() {
     password: '',
     confirmPassword: '',
     name: '',
-    university: ''
+    university: '',
+    companyName: ''
   });
 
   // Check if user is already logged in
@@ -94,8 +97,10 @@ export default function Auth() {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: formData.name,
-            university: formData.university,
-            username: formData.name || formData.email.split('@')[0]
+            university: userType === 'student' ? formData.university : undefined,
+            company_name: userType === 'company' ? formData.companyName : undefined,
+            username: formData.name || formData.email.split('@')[0],
+            user_type: userType
           }
         }
       });
@@ -266,15 +271,35 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <>
+                <div className="space-y-3">
+                  <Label>I am a:</Label>
+                  <RadioGroup value={userType} onValueChange={(value: UserType) => setUserType(value)}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="student" id="student" />
+                      <Label htmlFor="student" className="flex items-center gap-2 cursor-pointer">
+                        <GraduationCap className="w-4 h-4" />
+                        Student
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="company" id="company" />
+                      <Label htmlFor="company" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4" />
+                        Company
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">{userType === 'student' ? 'Full Name' : 'Contact Person Name'}</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <Input
                       id="name"
                       name="name"
                       type="text"
-                      placeholder="Enter your full name"
+                      placeholder={userType === 'student' ? 'Enter your full name' : 'Enter contact person name'}
                       className="pl-10 bg-surface border-border"
                       value={formData.name}
                       onChange={handleInputChange}
@@ -283,22 +308,41 @@ export default function Auth() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="university">University</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      id="university"
-                      name="university"
-                      type="text"
-                      placeholder="Enter your university"
-                      className="pl-10 bg-surface border-border"
-                      value={formData.university}
-                      onChange={handleInputChange}
-                      required
-                    />
+                {userType === 'student' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="university">University</Label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="university"
+                        name="university"
+                        type="text"
+                        placeholder="Enter your university"
+                        className="pl-10 bg-surface border-border"
+                        value={formData.university}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="companyName"
+                        name="companyName"
+                        type="text"
+                        placeholder="Enter your company name"
+                        className="pl-10 bg-surface border-border"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
