@@ -1,14 +1,14 @@
 
 import React from 'react';
-import { Home, MessageCircle, User, GraduationCap } from 'lucide-react';
+import { Home, MessageCircle, User, Search } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
+  { name: 'Explore', href: '/explore', icon: Search },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Profile', href: '/profile', icon: User },
-  { name: 'University', href: '/university', icon: GraduationCap },
 ];
 
 export default function MobileNavigation() {

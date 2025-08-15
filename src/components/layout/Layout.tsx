@@ -19,11 +19,11 @@ export default function Layout({ children }: LayoutProps) {
       {/* Desktop Sidebar */}
       <Sidebar />
       
-      {/* Header */}
+      {/* Header - hidden on mobile */}
       <Header />
       
       {/* Main Content */}
-      <main className={`md:ml-64 pt-16 pb-20 md:pb-6 ${showUsersSidebar ? 'xl:mr-80' : ''}`}>
+      <main className={`md:ml-64 md:pt-16 pb-20 md:pb-6 ${showUsersSidebar ? 'xl:mr-80' : ''}`}>
         <div className="container mx-auto px-4 py-6">
           {children}
         </div>

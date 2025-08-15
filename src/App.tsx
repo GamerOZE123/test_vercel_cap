@@ -10,6 +10,11 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import University from "./pages/University";
+import Explore from "./pages/Explore";
+import BuySell from "./pages/BuySell";
+import Auction from "./pages/Auction";
+import Clubs from "./pages/Clubs";
+import Holidays from "./pages/Holidays";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +34,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/explore"
+              element={
+                <ProtectedRoute>
+                  <Explore />
                 </ProtectedRoute>
               }
             />
@@ -61,6 +74,38 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <University />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/buy-sell"
+              element={
+                <ProtectedRoute>
+                  <BuySell />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/auction"
+              element={
+                <ProtectedRoute>
+                  <Auction />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clubs"
+              element={
+                <ProtectedRoute>
+                  <Clubs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/holidays"
+              element={
+                <ProtectedRoute>
+                  <Holidays />
                 </ProtectedRoute>
               }
             />
