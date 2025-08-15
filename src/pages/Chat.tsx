@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
 import UserSearch from '@/components/chat/UserSearch';
 import MobileChatHeader from '@/components/chat/MobileChatHeader';
+import ChatOverlayIcons from '@/components/chat/ChatOverlayIcons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -60,11 +60,9 @@ export default function Chat() {
       
       if (!isAtBottom) {
         setIsUserScrolling(true);
-        // Clear existing timeout
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
         }
-        // Reset scrolling state after 3 seconds of no scrolling
         scrollTimeoutRef.current = setTimeout(() => {
           setIsUserScrolling(false);
         }, 3000);
@@ -117,7 +115,6 @@ export default function Chat() {
     try {
       await sendMessage(selectedConversationId, newMessage);
       setNewMessage('');
-      // Refresh conversations and recent chats to update order
       refreshConversations();
       refreshRecentChats();
     } catch (error) {
@@ -139,7 +136,6 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
-      // Delete all messages in the conversation for this user
       const { error: messagesError } = await supabase
         .from('messages')
         .delete()
@@ -147,7 +143,6 @@ export default function Chat() {
       
       if (messagesError) throw messagesError;
       
-      // Record the clear action
       await supabase.from('deleted_chats').insert({
         user_id: user.id,
         conversation_id: selectedConversationId,
@@ -155,8 +150,6 @@ export default function Chat() {
       });
       
       toast.success('Chat cleared successfully');
-      
-      // Refresh messages to show empty chat
       await fetchMessages(selectedConversationId);
     } catch (error) {
       console.error('Error clearing chat:', error);
@@ -168,7 +161,6 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
-      // Record the delete action
       await supabase.from('deleted_chats').insert({
         user_id: user.id,
         conversation_id: selectedConversationId,
@@ -177,8 +169,6 @@ export default function Chat() {
       
       toast.success('Chat deleted successfully');
       handleBackToUserList();
-      
-      // Refresh conversations to remove from list
       refreshConversations();
       refreshRecentChats();
     } catch (error) {
@@ -208,6 +198,7 @@ export default function Chat() {
   if (!isMobile) {
     return (
       <Layout>
+        <ChatOverlayIcons />
         <div className="h-[calc(100vh-8rem)] flex gap-6">
           {/* User List */}
           <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
@@ -220,13 +211,14 @@ export default function Chat() {
               {recentChats.map((chat) => (
                 <div
                   key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors relative"
                   onClick={() => handleUserClick(chat.other_user_id)}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center relative">
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{chat.other_user_name}</p>
@@ -260,7 +252,6 @@ export default function Chat() {
                       </div>
                     </div>
                     
-                    {/* Chat Options */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -350,11 +341,12 @@ export default function Chat() {
     );
   }
 
-  // Mobile Layout
+  // Mobile Layout - No header
   return (
     <>
+      <ChatOverlayIcons />
       {showUserList ? (
-        <MobileLayout showHeader={true} showNavigation={true}>
+        <div className="min-h-screen bg-background flex flex-col pb-16">
           <div className="p-4">
             <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
             
@@ -368,10 +360,11 @@ export default function Chat() {
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => handleUserClick(chat.other_user_id)}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center relative">
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{chat.other_user_name}</p>
@@ -381,7 +374,7 @@ export default function Chat() {
               ))}
             </div>
           </div>
-        </MobileLayout>
+        </div>
       ) : (
         <div className="min-h-screen bg-background flex flex-col">
           <MobileChatHeader
