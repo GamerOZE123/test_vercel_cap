@@ -33,7 +33,7 @@ export default function PostCard({ post }: PostCardProps) {
     commentsCount, 
     addComment, 
     deleteComment, 
-    submitting: commentsSubmitting 
+    submitting 
   } = useComments(post.id);
 
   const handleToggleComments = () => {
@@ -77,7 +77,7 @@ export default function PostCard({ post }: PostCardProps) {
             comments={comments}
             onAddComment={addComment}
             onDeleteComment={deleteComment}
-            submitting={commentsSubmitting}
+            submitting={submitting}
           />
         )}
       </div>
