@@ -58,7 +58,7 @@ export default function PostCard({ post }: PostCardProps) {
         
         <PostContent
           content={post.content}
-          image={post.image_url}
+          fileUrl={post.image_url}
         />
         
         <PostActions

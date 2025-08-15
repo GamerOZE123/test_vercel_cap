@@ -27,7 +27,9 @@ interface PostWithProfile {
   id: string;
   content: string;
   image_url?: string;
-  timestamp: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
   user_id: string;
   profiles: {
     username: string;
@@ -35,6 +37,20 @@ interface PostWithProfile {
     avatar_url: string;
     university: string;
   };
+}
+
+// Transform post for PostCard component
+interface TransformedPost {
+  id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  user_id: string;
+  user_name: string;
+  user_username: string;
+  user_university?: string;
 }
 
 export default function Profile() {
@@ -102,7 +118,6 @@ export default function Profile() {
       // Combine the data
       const postsWithProfile: PostWithProfile[] = (postsData || []).map(post => ({
         ...post,
-        timestamp: post.created_at,
         profiles: profileData
       }));
 
@@ -170,22 +185,25 @@ export default function Profile() {
     fetchUserData(profileId);
   };
 
-  const transformPostsForPostCard = (posts: PostWithProfile[]) => {
+  const transformPostsForPostCard = (posts: PostWithProfile[]): TransformedPost[] => {
     return posts.map(post => ({
       id: post.id,
-      user: {
-        name: post.profiles.full_name || post.profiles.username || 'Unknown',
-        avatar: post.profiles.avatar_url || '',
-        university: post.profiles.university || ''
-      },
       content: post.content,
-      image: post.image_url,
-      timestamp: post.timestamp
+      image_url: post.image_url,
+      created_at: post.created_at,
+      likes_count: post.likes_count,
+      comments_count: post.comments_count,
+      user_id: post.user_id,
+      user_name: post.profiles.full_name || post.profiles.username || 'Unknown',
+      user_username: post.profiles.username || 'user',
+      user_university: post.profiles.university || 'University'
     }));
   };
 
   if (loading) return <Layout><div className="text-center py-8">Loading...</div></Layout>;
   if (!profileData) return <Layout><div className="text-center py-8">User not found</div></Layout>;
+
+  const transformedPosts = transformPostsForPostCard(posts);
 
   return (
     <Layout>
@@ -270,13 +288,9 @@ export default function Profile() {
 
         {/* Posts */}
         <div className="space-y-4">
-          {posts.length > 0 ? (
-            posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={transformPostsForPostCard([post])[0]}
-                showEditOption={isOwnProfile}
-              />
+          {transformedPosts.length > 0 ? (
+            transformedPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
             ))
           ) : (
             <div className="post-card text-center py-8">
