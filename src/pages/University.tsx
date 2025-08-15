@@ -8,14 +8,6 @@ import AuctionPage from '@/components/university/AuctionPage';
 import HolidayPage from '@/components/university/HolidayPage';
 import ClubsPage from '@/components/university/ClubsPage';
 
-const navigationSections = [
-  { id: 'overview', name: 'Overview', icon: GraduationCap },
-  { id: 'buysell', name: 'Buy & Sell', icon: ShoppingBag },
-  { id: 'auction', name: 'Auction', icon: Gavel },
-  { id: 'holidays', name: 'Holidays', icon: PartyPopper },
-  { id: 'clubs', name: 'Clubs', icon: UsersIcon },
-];
-
 export default function University() {
   const [activeSection, setActiveSection] = useState('overview');
 
