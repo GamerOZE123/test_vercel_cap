@@ -45,19 +45,10 @@ export default function Home() {
     try {
       console.log('Fetching posts...');
       
-      // Get all posts with profile information using the foreign key constraint
+      // First get all posts
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles!posts_user_id_fkey (
-            full_name,
-            username,
-            university,
-            major,
-            avatar_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (postsError) {
@@ -73,9 +64,31 @@ export default function Home() {
         return;
       }
       
+      // Get unique user IDs from posts
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+      
+      // Fetch profiles for all users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, university, major, avatar_url')
+        .in('user_id', userIds);
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+      
+      console.log('Fetched profiles:', profilesData);
+      
+      // Create a map of user_id to profile for quick lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.user_id, profile);
+      });
+      
       // Transform posts data with profile information
       const transformedPosts = postsData.map((post) => {
-        const profile = post.profiles;
+        const profile = profilesMap.get(post.user_id);
         
         // Create user display data with proper fallbacks  
         const userName = profile?.full_name || profile?.username || 'Anonymous User';
