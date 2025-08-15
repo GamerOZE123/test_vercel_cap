@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import PostCard from '@/components/post/PostCard';
+import EditProfileModal from '@/components/profile/EditProfileModal';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, UserMinus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserPlus, UserMinus, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useParams } from 'react-router-dom';
@@ -25,7 +26,7 @@ interface ProfileData {
 interface PostWithProfile {
   id: string;
   content: string;
-  image?: string;
+  image_url?: string;
   timestamp: string;
   user_id: string;
   profiles: {
@@ -33,15 +34,6 @@ interface PostWithProfile {
     full_name: string;
     avatar_url: string;
     university: string;
-  };
-}
-
-interface BlockedUser {
-  blocked_id: string;
-  blocker_id: string;
-  profiles?: {
-    username: string;
-    full_name: string;
   };
 }
 
@@ -53,20 +45,17 @@ export default function Profile() {
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<PostWithProfile[]>([]);
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (profileId) {
       fetchUserData(profileId);
       fetchUserPosts(profileId);
-      if (isOwnProfile) {
-        fetchBlockedUsers();
-      }
     }
-  }, [profileId, isOwnProfile]);
+  }, [profileId]);
 
   useEffect(() => {
     const checkFollowingStatus = async () => {
@@ -120,50 +109,6 @@ export default function Profile() {
       setPosts(postsWithProfile);
     } catch (error) {
       console.error("Error fetching user posts:", error);
-    }
-  };
-
-  const fetchBlockedUsers = async () => {
-    if (!user) return;
-
-    try {
-      // First get blocked user IDs
-      const { data: blockedData, error: blockedError } = await supabase
-        .from('blocked_users')
-        .select('blocked_id, blocker_id')
-        .eq('blocker_id', user.id);
-
-      if (blockedError) throw blockedError;
-
-      if (!blockedData || blockedData.length === 0) {
-        setBlockedUsers([]);
-        return;
-      }
-
-      // Get profile information for blocked users
-      const blockedUserIds = blockedData.map(item => item.blocked_id);
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, username, full_name')
-        .in('user_id', blockedUserIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const blockedUsersWithProfiles = blockedData.map(blockedItem => {
-        const profile = profilesData?.find(p => p.user_id === blockedItem.blocked_id);
-        return {
-          ...blockedItem,
-          profiles: profile ? {
-            username: profile.username,
-            full_name: profile.full_name
-          } : undefined
-        };
-      });
-
-      setBlockedUsers(blockedUsersWithProfiles);
-    } catch (error) {
-      console.error("Error fetching blocked users:", error);
     }
   };
 
@@ -221,22 +166,8 @@ export default function Profile() {
     }
   };
 
-  const handleUnblockUser = async (blockedUserId: string) => {
-    try {
-      const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('blocker_id', user?.id)
-        .eq('blocked_id', blockedUserId);
-
-      if (error) throw error;
-
-      setBlockedUsers(blockedUsers.filter(blockedUser => blockedUser.blocked_id !== blockedUserId));
-      toast.success('User unblocked successfully!');
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      toast.error('Failed to unblock user');
-    }
+  const handleProfileUpdate = () => {
+    fetchUserData(profileId);
   };
 
   const transformPostsForPostCard = (posts: PostWithProfile[]) => {
@@ -248,7 +179,7 @@ export default function Profile() {
         university: post.profiles.university || ''
       },
       content: post.content,
-      image: post.image,
+      image: post.image_url,
       timestamp: post.timestamp
     }));
   };
@@ -302,8 +233,17 @@ export default function Profile() {
                 </div>
               </div>
               
-              {!isOwnProfile && (
-                <div className="flex justify-center md:justify-start gap-2">
+              <div className="flex justify-center md:justify-start gap-2">
+                {isOwnProfile ? (
+                  <Button
+                    onClick={() => setIsEditModalOpen(true)}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit Profile
+                  </Button>
+                ) : (
                   <Button
                     onClick={handleFollow}
                     variant={isFollowing ? "outline" : "default"}
@@ -322,75 +262,35 @@ export default function Profile() {
                       </>
                     )}
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Content Tabs */}
-        <Tabs defaultValue="posts" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="posts" className="space-y-4">
-            {posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={transformPostsForPostCard([post])[0]}
-                  showEditOption={isOwnProfile}
-                />
-              ))
-            ) : (
-              <div className="post-card text-center py-8">
-                <p className="text-muted-foreground">No posts yet</p>
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="blocked" className="space-y-4">
-            {isOwnProfile ? (
-              blockedUsers.length > 0 ? (
-                <div className="post-card">
-                  <h3 className="text-lg font-semibold mb-4">Blocked Users</h3>
-                  <div className="space-y-3">
-                    {blockedUsers.map((blockedUser) => (
-                      <div key={blockedUser.blocked_id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {blockedUser.profiles?.full_name || blockedUser.profiles?.username || 'Unknown User'}
-                          </p>
-                          {blockedUser.profiles?.username && (
-                            <p className="text-sm text-muted-foreground">@{blockedUser.profiles.username}</p>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUnblockUser(blockedUser.blocked_id)}
-                        >
-                          Unblock
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="post-card text-center py-8">
-                  <p className="text-muted-foreground">No blocked users</p>
-                </div>
-              )
-            ) : (
-              <div className="post-card text-center py-8">
-                <p className="text-muted-foreground">You can only view your own blocked users</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+        {/* Posts */}
+        <div className="space-y-4">
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={transformPostsForPostCard([post])[0]}
+                showEditOption={isOwnProfile}
+              />
+            ))
+          ) : (
+            <div className="post-card text-center py-8">
+              <p className="text-muted-foreground">No posts yet</p>
+            </div>
+          )}
+        </div>
       </div>
+
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </Layout>
   );
 }
