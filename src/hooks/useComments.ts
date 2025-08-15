@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,7 +50,7 @@ export const useComments = (postId: string) => {
       
       console.log('Fetched comments:', data);
       
-      // Transform the data to match our interface
+      // Transform the data to ensure profiles is a single object or null
       const transformedComments = data?.map(comment => ({
         ...comment,
         profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
@@ -110,7 +111,7 @@ export const useComments = (postId: string) => {
       
       console.log('Comment added successfully:', data);
       
-      // Transform the data to match our interface
+      // Transform the data to ensure profiles is a single object or null
       const transformedComment = {
         ...data,
         profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
