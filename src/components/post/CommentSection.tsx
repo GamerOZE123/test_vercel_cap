@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { Trash2 } from 'lucide-react';
 
 interface Comment {
   id: string;
@@ -19,10 +20,16 @@ interface Comment {
 interface CommentSectionProps {
   comments: Comment[];
   onAddComment: (content: string) => Promise<boolean>;
+  onDeleteComment?: (commentId: string) => Promise<boolean>;
   submitting: boolean;
 }
 
-export default function CommentSection({ comments, onAddComment, submitting }: CommentSectionProps) {
+export default function CommentSection({ 
+  comments, 
+  onAddComment, 
+  onDeleteComment,
+  submitting 
+}: CommentSectionProps) {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
 
@@ -32,6 +39,12 @@ export default function CommentSection({ comments, onAddComment, submitting }: C
     const success = await onAddComment(newComment);
     if (success) {
       setNewComment('');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (onDeleteComment) {
+      await onDeleteComment(commentId);
     }
   };
 
@@ -79,13 +92,25 @@ export default function CommentSection({ comments, onAddComment, submitting }: C
               </span>
             </div>
             <div className="flex-1 bg-muted/50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-medium text-foreground">
-                  {comment.profiles?.full_name || comment.profiles?.username || 'Anonymous User'}
-                </p>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(comment.created_at).toLocaleDateString()}
-                </span>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {comment.profiles?.full_name || comment.profiles?.username || 'Anonymous User'}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(comment.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                {user && user.id === comment.user_id && onDeleteComment && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-foreground">{comment.content}</p>
             </div>

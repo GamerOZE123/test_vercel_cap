@@ -3,10 +3,14 @@ import React from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useNavigate } from 'react-router-dom';
+import { useChat } from '@/hooks/useChat';
 import { Heart, MessageCircle, User, Check } from 'lucide-react';
 
 export default function Notifications() {
   const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
+  const { createConversation } = useChat();
+  const navigate = useNavigate();
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -16,8 +20,31 @@ export default function Notifications() {
         return <MessageCircle className="w-5 h-5 text-blue-500" />;
       case 'follow':
         return <User className="w-5 h-5 text-green-500" />;
+      case 'message':
+        return <MessageCircle className="w-5 h-5 text-purple-500" />;
       default:
         return <div className="w-5 h-5 bg-gray-400 rounded-full" />;
+    }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
+
+    // Handle different notification types
+    if (notification.type === 'message' && notification.related_user_id) {
+      // Create conversation and navigate to chat
+      const conversationId = await createConversation(notification.related_user_id);
+      if (conversationId) {
+        navigate('/chat');
+      }
+    } else if (notification.related_post_id) {
+      // Navigate to the specific post
+      navigate(`/post/${notification.related_post_id}`);
+    } else if (notification.related_user_id) {
+      // Navigate to user profile
+      navigate(`/profile/${notification.related_user_id}`);
     }
   };
 
@@ -52,7 +79,7 @@ export default function Notifications() {
                 className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
                   !notification.is_read ? 'bg-muted/30' : ''
                 }`}
-                onClick={() => !notification.is_read && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start gap-3">
                   {getNotificationIcon(notification.type)}

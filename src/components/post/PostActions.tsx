@@ -1,10 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Heart, MessageCircle, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import ShareModal from './ShareModal';
 
 interface PostActionsProps {
+  postId: string;
+  postContent: string;
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
@@ -14,6 +17,8 @@ interface PostActionsProps {
 }
 
 export default function PostActions({ 
+  postId,
+  postContent,
   likesCount, 
   commentsCount, 
   isLiked, 
@@ -21,38 +26,54 @@ export default function PostActions({
   onComment,
   likesLoading = false 
 }: PostActionsProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
+
   return (
-    <div className="flex items-center justify-between pt-2 border-t border-border">
-      <div className="flex items-center gap-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLike}
-          disabled={likesLoading}
-          className={cn(
-            "flex items-center gap-2 hover:bg-muted/50",
-            isLiked && "text-red-500 hover:text-red-600"
-          )}
-        >
-          <Heart className={cn("w-5 h-5", isLiked && "fill-current")} />
-          <span className="font-medium">{likesCount}</span>
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onComment}
-          className="flex items-center gap-2 hover:bg-muted/50"
-        >
-          <MessageCircle className="w-5 h-5" />
-          <span className="font-medium">{commentsCount}</span>
-        </Button>
-        
-        <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-muted/50">
-          <Share className="w-5 h-5" />
-          <span className="font-medium">Share</span>
-        </Button>
+    <>
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center gap-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLike}
+            disabled={likesLoading}
+            className={cn(
+              "flex items-center gap-2 hover:bg-muted/50",
+              isLiked && "text-red-500 hover:text-red-600"
+            )}
+          >
+            <Heart className={cn("w-5 h-5", isLiked && "fill-current")} />
+            <span className="font-medium">{likesCount}</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onComment}
+            className="flex items-center gap-2 hover:bg-muted/50"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="font-medium">{commentsCount}</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-2 hover:bg-muted/50"
+          >
+            <Share className="w-5 h-5" />
+            <span className="font-medium">Share</span>
+          </Button>
+        </div>
       </div>
-    </div>
+
+      <ShareModal
+        open={showShareModal}
+        onOpenChange={setShowShareModal}
+        postId={postId}
+        postContent={postContent}
+      />
+    </>
   );
 }

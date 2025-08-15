@@ -33,7 +33,7 @@ export const useComments = (postId: string) => {
         .from('comments')
         .select(`
           *,
-          profiles!comments_user_id_fkey (
+          profiles!inner (
             full_name,
             username,
             avatar_url
@@ -44,23 +44,22 @@ export const useComments = (postId: string) => {
 
       if (error) throw error;
       
-      const transformedComments = (data || []).map(comment => ({
-        ...comment,
-        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles
-      }));
-      
-      setComments(transformedComments);
-      setCommentsCount(transformedComments?.length || 0);
+      console.log('Fetched comments:', data);
+      setComments(data || []);
+      setCommentsCount(data?.length || 0);
 
       // Update post comments count
-      const { error: updateError } = await supabase
-        .from('posts')
-        .update({ comments_count: transformedComments?.length || 0 })
-        .eq('id', postId);
+      if (data) {
+        const { error: updateError } = await supabase
+          .from('posts')
+          .update({ comments_count: data.length })
+          .eq('id', postId);
 
-      if (updateError) console.error('Error updating comments count:', updateError);
+        if (updateError) console.error('Error updating comments count:', updateError);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      toast.error('Failed to load comments');
     } finally {
       setLoading(false);
     }
@@ -71,6 +70,8 @@ export const useComments = (postId: string) => {
 
     setSubmitting(true);
     try {
+      console.log('Adding comment:', { content, postId, userId: user.id });
+      
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -80,7 +81,7 @@ export const useComments = (postId: string) => {
         })
         .select(`
           *,
-          profiles!comments_user_id_fkey (
+          profiles!inner (
             full_name,
             username,
             avatar_url
@@ -88,14 +89,13 @@ export const useComments = (postId: string) => {
         `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding comment:', error);
+        throw error;
+      }
       
-      const transformedComment = {
-        ...data,
-        profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
-      };
-      
-      setComments(prev => [...prev, transformedComment]);
+      console.log('Comment added successfully:', data);
+      setComments(prev => [...prev, data]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;
@@ -136,7 +136,7 @@ export const useComments = (postId: string) => {
 
   useEffect(() => {
     fetchComments();
-  }, [postId]);
+  }, [postId, user]);
 
   return {
     comments,
