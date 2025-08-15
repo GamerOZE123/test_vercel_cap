@@ -1,10 +1,76 @@
+
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
-import { GraduationCap, Gavel, ShoppingBag, Calendar, Users, Briefcase, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  Briefcase, 
+  Store, 
+  Calendar, 
+  Users, 
+  ShoppingBag, 
+  Gavel,
+  PlusCircle,
+  Target
+} from 'lucide-react';
+
+const universityOptions = [
+  {
+    id: 'jobs',
+    title: 'Jobs & Internships',
+    description: 'Find your next opportunity or post job openings',
+    icon: Briefcase,
+    path: '/jobs-internships',
+    color: 'bg-blue-500',
+    allowedFor: ['student', 'company']
+  },
+  {
+    id: 'advertising',
+    title: 'Advertising',
+    description: 'Promote your business or services to students',
+    icon: Target,
+    path: '/advertising',
+    color: 'bg-orange-500',
+    allowedFor: ['company']
+  },
+  {
+    id: 'clubs',
+    title: 'Clubs & Organizations',
+    description: 'Join clubs and connect with like-minded students',
+    icon: Users,
+    path: '/clubs',
+    color: 'bg-purple-500',
+    allowedFor: ['student']
+  },
+  {
+    id: 'buysell',
+    title: 'Buy & Sell',
+    description: 'Marketplace for students to buy and sell items',
+    icon: Store,
+    path: '/buy-sell',
+    color: 'bg-green-500',
+    allowedFor: ['student']
+  },
+  {
+    id: 'auction',
+    title: 'Auction',
+    description: 'Bid on items and auction your belongings',
+    icon: Gavel,
+    path: '/auction',
+    color: 'bg-red-500',
+    allowedFor: ['student']
+  },
+  {
+    id: 'holidays',
+    title: 'Holiday Events',
+    description: 'Discover and organize holiday celebrations',
+    icon: Calendar,
+    path: '/holidays',
+    color: 'bg-pink-500',
+    allowedFor: ['student']
+  }
+];
 
 export default function University() {
   const navigate = useNavigate();
@@ -37,63 +103,6 @@ export default function University() {
     fetchUserType();
   }, [user]);
 
-  const studentActions = [
-    {
-      name: 'Auctions',
-      description: 'Bid on items from fellow students',
-      icon: Gavel,
-      path: '/auction',
-      color: 'from-purple-500 to-purple-600'
-    },
-    {
-      name: 'Buy & Sell',
-      description: 'Browse marketplace items',
-      icon: ShoppingBag,
-      path: '/buy-sell',
-      color: 'from-green-500 to-green-600'
-    },
-    {
-      name: 'Jobs & Internships',
-      description: 'Find your dream job or internship',
-      icon: Briefcase,
-      path: '/jobs',
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      name: 'Holidays',
-      description: 'Campus holiday events',
-      icon: Calendar,
-      path: '/holidays',
-      color: 'from-red-500 to-red-600'
-    },
-    {
-      name: 'Clubs',
-      description: 'Join student organizations',
-      icon: Users,
-      path: '/clubs',
-      color: 'from-indigo-500 to-indigo-600'
-    }
-  ];
-
-  const companyActions = [
-    {
-      name: 'Jobs & Internships',
-      description: 'Post jobs and find talented students',
-      icon: Briefcase,
-      path: '/jobs',
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      name: 'Advertising',
-      description: 'Promote your company to students',
-      icon: TrendingUp,
-      path: '/advertising',
-      color: 'from-green-500 to-green-600'
-    }
-  ];
-
-  const quickActions = userType === 'student' ? studentActions : companyActions;
-
   if (loading) {
     return (
       <Layout>
@@ -104,64 +113,60 @@ export default function University() {
     );
   }
 
+  // Filter options based on user type
+  const filteredOptions = universityOptions.filter(option => 
+    option.allowedFor.includes(userType)
+  );
+
   return (
     <Layout>
-      <div className="space-y-4 md:space-y-6">
-        {/* University Details */}
-        <div className="post-card">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Stanford University</h1>
-              <p className="text-sm md:text-base text-muted-foreground">California, USA • Founded 1885</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <p className="text-lg md:text-xl font-bold text-primary">15,845</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Students</p>
-            </div>
-            <div>
-              <p className="text-lg md:text-xl font-bold text-primary">2,180</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Faculty</p>
-            </div>
-            <div>
-              <p className="text-lg md:text-xl font-bold text-primary">7</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Schools</p>
-            </div>
-            <div>
-              <p className="text-lg md:text-xl font-bold text-primary">83</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Majors</p>
-            </div>
-          </div>
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-foreground mb-2">University Hub</h1>
+          <p className="text-muted-foreground">
+            {userType === 'company' 
+              ? 'Connect with students and promote your opportunities'
+              : 'Everything you need for your university experience'
+            }
+          </p>
         </div>
 
-        {/* Quick Access */}
-        <div className="post-card">
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-4">
-            {userType === 'student' ? 'Quick Access' : 'Company Dashboard'}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {quickActions.map((action) => (
-              <Button
-                key={action.name}
-                variant="outline"
-                className="h-auto p-4 justify-start hover:shadow-md transition-shadow"
-                onClick={() => navigate(action.path)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOptions.map((option) => {
+            const IconComponent = option.icon;
+            return (
+              <div
+                key={option.id}
+                onClick={() => navigate(option.path)}
+                className="post-card cursor-pointer hover:shadow-lg transition-all duration-200 group"
               >
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mr-4 flex-shrink-0`}>
-                  <action.icon className="w-5 h-5 text-white" />
+                <div className="flex items-start space-x-4">
+                  <div className={`${option.color} p-3 rounded-lg group-hover:scale-110 transition-transform duration-200`}>
+                    <IconComponent className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+                      {option.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {option.description}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="font-semibold text-foreground">{action.name}</h3>
-                  <p className="text-sm text-muted-foreground">{action.description}</p>
-                </div>
-              </Button>
-            ))}
-          </div>
+              </div>
+            );
+          })}
         </div>
+
+        {userType === 'student' && (
+          <div className="post-card text-center py-8">
+            <PlusCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Need something else?</h3>
+            <p className="text-muted-foreground">
+              Can't find what you're looking for? Let us know what other features would help your university experience.
+            </p>
+          </div>
+        )}
       </div>
     </Layout>
   );
