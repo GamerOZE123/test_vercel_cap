@@ -27,7 +27,7 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
-  const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id, post.likes_count);
+  const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
   const { 
     comments, 
     commentsCount, 
