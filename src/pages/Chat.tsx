@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -312,7 +311,7 @@ export default function Chat() {
   // Desktop Layout
   if (!isMobile) {
     return (
-      <Layout showHeader={false}>
+      <div className="min-h-screen bg-background">
         <div className="h-screen flex gap-6 p-6">
           {/* User List */}
           <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
@@ -492,7 +491,7 @@ export default function Chat() {
             )}
           </div>
         </div>
-      </Layout>
+      </div>
     );
   }
 
