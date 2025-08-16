@@ -29,8 +29,6 @@ export const useComments = (postId: string) => {
 
     setLoading(true);
     try {
-      console.log('Fetching comments for post:', postId);
-      
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -39,7 +37,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -48,34 +46,15 @@ export const useComments = (postId: string) => {
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching comments:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('Fetched comments data:', data);
+      console.log('Fetched comments:', data);
       
-      // Transform the data to handle profiles properly
-      const transformedComments: Comment[] = (data || []).map(comment => {
-        let profileData = null;
-        
-        if (comment.profiles) {
-          // Handle both array and object cases safely
-          const profile = Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles;
-          if (profile && typeof profile === 'object') {
-            profileData = {
-              full_name: (profile as any).full_name || '',
-              username: (profile as any).username || '',
-              avatar_url: (profile as any).avatar_url || undefined
-            };
-          }
-        }
-        
-        return {
-          ...comment,
-          profiles: profileData
-        };
-      });
+      // Transform the data to handle profiles array properly
+      const transformedComments: Comment[] = (data || []).map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
+      }));
       
       setComments(transformedComments);
       setCommentsCount(transformedComments.length);
@@ -117,7 +96,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -132,22 +111,10 @@ export const useComments = (postId: string) => {
       
       console.log('Comment added successfully:', data);
       
-      // Transform the data to handle profiles properly
-      let profileData = null;
-      if (data.profiles) {
-        const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
-        if (profile && typeof profile === 'object') {
-          profileData = {
-            full_name: (profile as any).full_name || '',
-            username: (profile as any).username || '',
-            avatar_url: (profile as any).avatar_url || undefined
-          };
-        }
-      }
-      
+      // Transform the data to handle profiles array properly
       const transformedComment: Comment = {
         ...data,
-        profiles: profileData
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
       };
       
       setComments(prev => [...prev, transformedComment]);

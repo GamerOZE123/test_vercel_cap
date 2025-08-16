@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { useLikes } from '@/hooks/useLikes';
 import { useComments } from '@/hooks/useComments';
-import { useNavigate } from 'react-router-dom';
 import PostHeader from './PostHeader';
 import PostContent from './PostContent';
 import PostActions from './PostActions';
@@ -27,7 +26,6 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post }: PostCardProps) {
-  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
   const { 
@@ -42,15 +40,6 @@ export default function PostCard({ post }: PostCardProps) {
     setShowComments(!showComments);
   };
 
-  const handlePostClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on interactive elements
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('input') || target.closest('a')) {
-      return;
-    }
-    navigate(`/post/${post.id}`);
-  };
-
   // Create user object for PostHeader
   const userForHeader = {
     name: post.user_name || 'Anonymous User',
@@ -59,7 +48,7 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <Card className="bg-card border-border cursor-pointer hover:shadow-md transition-shadow" onClick={handlePostClick}>
+    <Card className="bg-card border-border">
       <div className="p-6">
         <PostHeader
           user={userForHeader}
