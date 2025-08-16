@@ -50,14 +50,20 @@ export const useComments = (postId: string) => {
       
       console.log('Fetched comments:', data);
       
-      setComments(data || []);
-      setCommentsCount(data?.length || 0);
+      // Transform the data to handle profiles array properly
+      const transformedComments: Comment[] = (data || []).map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
+      }));
+      
+      setComments(transformedComments);
+      setCommentsCount(transformedComments.length);
 
       // Update post comments count
-      if (data) {
+      if (transformedComments.length >= 0) {
         const { error: updateError } = await supabase
           .from('posts')
-          .update({ comments_count: data.length })
+          .update({ comments_count: transformedComments.length })
           .eq('id', postId);
 
         if (updateError) console.error('Error updating comments count:', updateError);
@@ -105,7 +111,13 @@ export const useComments = (postId: string) => {
       
       console.log('Comment added successfully:', data);
       
-      setComments(prev => [...prev, data]);
+      // Transform the data to handle profiles array properly
+      const transformedComment: Comment = {
+        ...data,
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
+      };
+      
+      setComments(prev => [...prev, transformedComment]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;
