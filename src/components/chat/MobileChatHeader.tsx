@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, MoreVertical, MessageSquareX, Trash2, UserX, UserCheck } from 'lucide-react';
+import { ArrowLeft, MoreVertical, MessageSquareX, Trash2, UserX } from 'lucide-react';
 
 interface MobileChatHeaderProps {
   userName: string;
@@ -12,7 +12,6 @@ interface MobileChatHeaderProps {
   onClearChat?: () => void;
   onDeleteChat?: () => void;
   onBlockUser?: () => void;
-  onUnblockUser?: () => void;
 }
 
 export default function MobileChatHeader({ 
@@ -22,8 +21,7 @@ export default function MobileChatHeader({
   onMenuClick,
   onClearChat,
   onDeleteChat,
-  onBlockUser,
-  onUnblockUser
+  onBlockUser
 }: MobileChatHeaderProps) {
   return (
     <div className="fixed top-0 left-0 right-0 bg-card border-b border-border p-4 z-50">
@@ -59,42 +57,23 @@ export default function MobileChatHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {onUnblockUser ? (
-              // Show unblock options when user is blocked
-              <>
-                <DropdownMenuItem onClick={onUnblockUser}>
-                  <UserCheck className="w-4 h-4 mr-2" />
-                  Unblock User
-                </DropdownMenuItem>
-                {onDeleteChat && (
-                  <DropdownMenuItem onClick={onDeleteChat}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Chat
-                  </DropdownMenuItem>
-                )}
-              </>
-            ) : (
-              // Show normal options when user is not blocked
-              <>
-                {onClearChat && (
-                  <DropdownMenuItem onClick={onClearChat}>
-                    <MessageSquareX className="w-4 h-4 mr-2" />
-                    Clear Chat
-                  </DropdownMenuItem>
-                )}
-                {onDeleteChat && (
-                  <DropdownMenuItem onClick={onDeleteChat}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Chat
-                  </DropdownMenuItem>
-                )}
-                {onBlockUser && (
-                  <DropdownMenuItem onClick={onBlockUser} className="text-destructive">
-                    <UserX className="w-4 h-4 mr-2" />
-                    Block User
-                  </DropdownMenuItem>
-                )}
-              </>
+            {onClearChat && (
+              <DropdownMenuItem onClick={onClearChat}>
+                <MessageSquareX className="w-4 h-4 mr-2" />
+                Clear Chat
+              </DropdownMenuItem>
+            )}
+            {onDeleteChat && (
+              <DropdownMenuItem onClick={onDeleteChat}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Chat
+              </DropdownMenuItem>
+            )}
+            {onBlockUser && (
+              <DropdownMenuItem onClick={onBlockUser} className="text-destructive">
+                <UserX className="w-4 h-4 mr-2" />
+                Block User
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
