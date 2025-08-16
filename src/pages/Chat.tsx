@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -6,7 +7,7 @@ import MobileChatHeader from '@/components/chat/MobileChatHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Send, ArrowLeft, MoreVertical, Trash2, MessageSquareX, UserX } from 'lucide-react';
+import { Send, ArrowLeft, MoreVertical, Trash2, MessageSquareX, UserX, UserCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/hooks/useChat';
 import { useRecentChats } from '@/hooks/useRecentChats';
@@ -26,6 +27,7 @@ export default function Chat() {
   const [showUserList, setShowUserList] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<Set<string>>(new Set());
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
@@ -43,6 +45,61 @@ export default function Chat() {
   
   const { recentChats, addRecentChat, refreshRecentChats } = useRecentChats();
   const { getUserById } = useUsers();
+
+  // Fetch blocked users on component mount
+  useEffect(() => {
+    const fetchBlockedUsers = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('blocked_users')
+          .select('blocked_id')
+          .eq('blocker_id', user.id);
+        
+        if (error) throw error;
+        
+        const blockedSet = new Set(data.map(block => block.blocked_id));
+        setBlockedUsers(blockedSet);
+      } catch (error) {
+        console.error('Error fetching blocked users:', error);
+      }
+    };
+
+    fetchBlockedUsers();
+  }, [user]);
+
+  // Listen for new messages to show unread indicators
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('new-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          const newMessage = payload.new;
+          // If message is not from current user and not in current conversation
+          if (newMessage.sender_id !== user.id && newMessage.conversation_id !== selectedConversationId) {
+            // Find the other user in this conversation
+            const conversation = conversations.find(conv => conv.conversation_id === newMessage.conversation_id);
+            if (conversation) {
+              setUnreadMessages(prev => new Set([...prev, conversation.other_user_id]));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, selectedConversationId, conversations]);
 
   // Auto-scroll to bottom when new messages arrive (only if user isn't scrolling)
   useEffect(() => {
@@ -102,7 +159,7 @@ export default function Chat() {
         setSelectedConversationId(conversationId);
         await addRecentChat(userId);
         
-        // Mark messages as read
+        // Mark messages as read (remove red dot)
         setUnreadMessages(prev => {
           const newSet = new Set(prev);
           newSet.delete(userId);
@@ -146,20 +203,13 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
-      // Delete all messages in the conversation for this user
+      // Delete all messages in the conversation
       const { error: messagesError } = await supabase
         .from('messages')
         .delete()
         .eq('conversation_id', selectedConversationId);
       
       if (messagesError) throw messagesError;
-      
-      // Record the clear action
-      await supabase.from('deleted_chats').insert({
-        user_id: user.id,
-        conversation_id: selectedConversationId,
-        reason: 'cleared'
-      });
       
       toast.success('Chat cleared successfully');
       
@@ -175,12 +225,32 @@ export default function Chat() {
     if (!selectedConversationId || !user) return;
     
     try {
-      // Record the delete action
-      await supabase.from('deleted_chats').insert({
-        user_id: user.id,
-        conversation_id: selectedConversationId,
-        reason: 'deleted'
-      });
+      // Delete all messages in the conversation
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', selectedConversationId);
+      
+      // Delete conversation participants
+      await supabase
+        .from('conversation_participants')
+        .delete()
+        .eq('conversation_id', selectedConversationId);
+      
+      // Delete the conversation
+      await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', selectedConversationId);
+      
+      // Remove from recent chats
+      if (selectedUser) {
+        await supabase
+          .from('recent_chats')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('other_user_id', selectedUser.user_id);
+      }
       
       toast.success('Chat deleted successfully');
       handleBackToUserList();
@@ -203,19 +273,47 @@ export default function Chat() {
         blocked_id: selectedUser.user_id
       });
       
+      setBlockedUsers(prev => new Set([...prev, selectedUser.user_id]));
       toast.success('User blocked successfully');
-      handleBackToUserList();
     } catch (error) {
       console.error('Error blocking user:', error);
       toast.error('Failed to block user');
     }
   };
 
+  const handleUnblockUser = async () => {
+    if (!selectedUser?.user_id || !user) return;
+    
+    try {
+      await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', selectedUser.user_id);
+      
+      setBlockedUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedUser.user_id);
+        return newSet;
+      });
+      
+      toast.success('User unblocked successfully');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      toast.error('Failed to unblock user');
+    }
+  };
+
+  const isUserBlocked = selectedUser ? blockedUsers.has(selectedUser.user_id) : false;
+
+  // Filter messages if user is blocked
+  const filteredMessages = isUserBlocked ? [] : currentMessages;
+
   // Desktop Layout
   if (!isMobile) {
     return (
-      <Layout>
-        <div className="h-[calc(100vh-8rem)] flex gap-6">
+      <Layout showHeader={false}>
+        <div className="h-screen flex gap-6 p-6">
           {/* User List */}
           <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
             <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
@@ -278,73 +376,111 @@ export default function Chat() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleClearChat}>
-                          <MessageSquareX className="w-4 h-4 mr-2" />
-                          Clear Chat
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDeleteChat}>
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Chat
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleBlockUser} className="text-destructive">
-                          <UserX className="w-4 h-4 mr-2" />
-                          Block User
-                        </DropdownMenuItem>
+                        {!isUserBlocked ? (
+                          <>
+                            <DropdownMenuItem onClick={handleClearChat}>
+                              <MessageSquareX className="w-4 h-4 mr-2" />
+                              Clear Chat
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDeleteChat}>
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Chat
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleBlockUser} className="text-destructive">
+                              <UserX className="w-4 h-4 mr-2" />
+                              Block User
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
+                            <DropdownMenuItem onClick={handleUnblockUser}>
+                              <UserCheck className="w-4 h-4 mr-2" />
+                              Unblock User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDeleteChat}>
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Chat
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
 
-                <div 
-                  ref={messagesContainerRef}
-                  onScroll={handleScroll}
-                  className="flex-1 p-6 overflow-y-auto space-y-4"
-                >
-                  {currentMessages && currentMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                          message.sender_id === user?.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-foreground'
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.sender_id === user?.id 
-                            ? 'text-primary-foreground/70' 
-                            : 'text-muted-foreground'
-                        }`}>
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
+                {isUserBlocked ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <UserX className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-foreground mb-2">User Blocked</h3>
+                      <p className="text-muted-foreground mb-4">You have blocked this user. Messages are hidden.</p>
+                      <div className="flex gap-2 justify-center">
+                        <Button onClick={handleUnblockUser} variant="outline">
+                          <UserCheck className="w-4 h-4 mr-2" />
+                          Unblock User
+                        </Button>
+                        <Button onClick={handleDeleteChat} variant="destructive">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Chat
+                        </Button>
                       </div>
                     </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                <div className="p-6 border-t border-border">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Type your message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                      <Send className="w-4 h-4" />
-                    </Button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div 
+                      ref={messagesContainerRef}
+                      onScroll={handleScroll}
+                      className="flex-1 p-6 overflow-y-auto space-y-4"
+                    >
+                      {filteredMessages && filteredMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                              message.sender_id === user?.id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-foreground'
+                            }`}
+                          >
+                            <p className="text-sm">{message.content}</p>
+                            <p className={`text-xs mt-1 ${
+                              message.sender_id === user?.id 
+                                ? 'text-primary-foreground/70' 
+                                : 'text-muted-foreground'
+                            }`}>
+                              {new Date(message.created_at).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    <div className="p-6 border-t border-border">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Type your message..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                          className="flex-1"
+                          disabled={isUserBlocked}
+                        />
+                        <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isUserBlocked}>
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
@@ -401,61 +537,85 @@ export default function Chat() {
             userName={selectedUser?.full_name || selectedUser?.username || 'Unknown User'}
             userUniversity={selectedUser?.university || 'University'}
             onBackClick={handleBackToUserList}
-            onClearChat={handleClearChat}
+            onClearChat={!isUserBlocked ? handleClearChat : undefined}
             onDeleteChat={handleDeleteChat}
-            onBlockUser={handleBlockUser}
+            onBlockUser={!isUserBlocked ? handleBlockUser : undefined}
+            onUnblockUser={isUserBlocked ? handleUnblockUser : undefined}
           />
           
-          <div 
-            ref={messagesContainerRef}
-            onScroll={handleScroll}
-            className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20"
-          >
-            {currentMessages && currentMessages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-xs px-4 py-2 rounded-2xl ${
-                    message.sender_id === user?.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.sender_id === user?.id 
-                      ? 'text-primary-foreground/70' 
-                      : 'text-muted-foreground'
-                  }`}>
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
+          {isUserBlocked ? (
+            <div className="flex-1 flex items-center justify-center pt-20 pb-20">
+              <div className="text-center">
+                <UserX className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">User Blocked</h3>
+                <p className="text-muted-foreground mb-4">You have blocked this user. Messages are hidden.</p>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={handleUnblockUser} variant="outline">
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Unblock User
+                  </Button>
+                  <Button onClick={handleDeleteChat} variant="destructive">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Chat
+                  </Button>
                 </div>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                <Send className="w-4 h-4" />
-              </Button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div 
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 p-4 overflow-y-auto space-y-4 pt-20 pb-20"
+              >
+                {filteredMessages && filteredMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs px-4 py-2 rounded-2xl ${
+                        message.sender_id === user?.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.sender_id === user?.id 
+                          ? 'text-primary-foreground/70' 
+                          : 'text-muted-foreground'
+                      }`}>
+                        {new Date(message.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={isUserBlocked ? "User is blocked" : "Type your message..."}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    className="flex-1"
+                    disabled={isUserBlocked}
+                  />
+                  <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isUserBlocked}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>
