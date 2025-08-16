@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
   const [loading, setLoading] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -32,6 +33,34 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
     experience_level: '',
     application_deadline: ''
   });
+
+  useEffect(() => {
+    const fetchCompanyProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('company_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching company profile:', error);
+          toast.error('Company profile not found. Please complete your profile first.');
+          return;
+        }
+
+        setCompanyProfile(data);
+      } catch (error) {
+        console.error('Error fetching company profile:', error);
+      }
+    };
+
+    if (open && user) {
+      fetchCompanyProfile();
+    }
+  }, [open, user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -53,24 +82,50 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !companyProfile) {
+      toast.error('Company profile is required to post jobs.');
+      return;
+    }
+
+    if (!formData.title || !formData.description || !formData.job_type) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const jobData = {
+        company_id: user.id,
+        title: formData.title,
+        description: formData.description,
+        requirements: formData.requirements || null,
+        salary_range: formData.salary_range || null,
+        location: formData.location || null,
+        job_type: formData.job_type,
+        experience_level: formData.experience_level || null,
+        skills_required: skills.length > 0 ? skills : null,
+        application_deadline: formData.application_deadline ? new Date(formData.application_deadline).toISOString().split('T')[0] : null,
+        is_active: true
+      };
+
+      console.log('Creating job with data:', jobData);
+
+      const { data, error } = await supabase
         .from('jobs')
-        .insert({
-          company_id: user.id,
-          ...formData,
-          skills_required: skills,
-          application_deadline: formData.application_deadline || null
-        });
+        .insert(jobData)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating job:', error);
+        toast.error(`Failed to post job: ${error.message}`);
+        return;
+      }
 
+      console.log('Job created successfully:', data);
       toast.success('Job posted successfully!');
       onOpenChange(false);
+      
       // Reset form
       setFormData({
         title: '',
@@ -90,6 +145,26 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
       setLoading(false);
     }
   };
+
+  if (!companyProfile && open) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Company Profile Required</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-6">
+            <p className="text-muted-foreground mb-4">
+              You need to complete your company profile before posting jobs.
+            </p>
+            <Button onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -225,6 +300,7 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
               type="date"
               value={formData.application_deadline}
               onChange={handleInputChange}
+              min={new Date().toISOString().split('T')[0]}
             />
           </div>
 
