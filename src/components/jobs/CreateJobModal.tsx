@@ -87,25 +87,37 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
       return;
     }
 
-    if (!formData.title || !formData.description || !formData.job_type) {
-      toast.error('Please fill in all required fields.');
+    // Validate required fields
+    if (!formData.title.trim()) {
+      toast.error('Job title is required.');
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      toast.error('Job description is required.');
+      return;
+    }
+
+    if (!formData.job_type) {
+      toast.error('Job type is required.');
       return;
     }
 
     setLoading(true);
 
     try {
+      // Prepare job data with proper types
       const jobData = {
         company_id: user.id,
-        title: formData.title,
-        description: formData.description,
-        requirements: formData.requirements || null,
-        salary_range: formData.salary_range || null,
-        location: formData.location || null,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        requirements: formData.requirements.trim() || null,
+        salary_range: formData.salary_range.trim() || null,
+        location: formData.location.trim() || null,
         job_type: formData.job_type,
         experience_level: formData.experience_level || null,
         skills_required: skills.length > 0 ? skills : null,
-        application_deadline: formData.application_deadline ? formData.application_deadline : null,
+        application_deadline: formData.application_deadline || null,
         is_active: true
       };
 
@@ -117,8 +129,14 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
         .select();
 
       if (error) {
-        console.error('Error creating job:', error);
+        console.error('Supabase error details:', error);
         toast.error(`Failed to post job: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.error('No data returned from insert');
+        toast.error('Failed to create job - no data returned');
         return;
       }
 
@@ -139,7 +157,7 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
       });
       setSkills([]);
     } catch (error: any) {
-      console.error('Error creating job:', error);
+      console.error('Unexpected error creating job:', error);
       toast.error('Failed to post job. Please try again.');
     } finally {
       setLoading(false);
