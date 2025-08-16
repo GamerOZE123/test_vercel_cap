@@ -146,23 +146,35 @@ export default function Chat() {
           created_at,
           sender_id,
           conversation_id,
-          profiles:profiles!messages_sender_id_fkey(id, full_name, username, avatar_url, user_id)
+          profiles:sender_id(id, full_name, username, avatar_url, user_id)
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       
-      // Transform the data to match the expected interface
-      const transformedMessages = (data || []).map(message => ({
-        ...message,
-        profiles: message.profiles ? {
-          id: message.profiles.user_id,
-          full_name: message.profiles.full_name || '',
-          username: message.profiles.username || '',
-          avatar_url: message.profiles.avatar_url
-        } : null
-      }));
+      // Transform the data to handle profiles properly
+      const transformedMessages = (data || []).map(message => {
+        let profileData = null;
+        
+        if (message.profiles) {
+          // Handle both array and object cases safely
+          const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
+          if (profile && typeof profile === 'object') {
+            profileData = {
+              id: (profile as any).user_id || (profile as any).id,
+              full_name: (profile as any).full_name || '',
+              username: (profile as any).username || '',
+              avatar_url: (profile as any).avatar_url
+            };
+          }
+        }
+        
+        return {
+          ...message,
+          profiles: profileData
+        };
+      });
       
       setMessages(transformedMessages);
     } catch (error) {
@@ -211,21 +223,29 @@ export default function Chat() {
           created_at,
           sender_id,
           conversation_id,
-          profiles:profiles!messages_sender_id_fkey(id, full_name, username, avatar_url, user_id)
+          profiles:sender_id(id, full_name, username, avatar_url, user_id)
         `)
         .single();
 
       if (error) throw error;
       
-      // Transform the data to match the expected interface
+      // Transform the data to handle profiles properly
+      let profileData = null;
+      if (data.profiles) {
+        const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+        if (profile && typeof profile === 'object') {
+          profileData = {
+            id: (profile as any).user_id || (profile as any).id,
+            full_name: (profile as any).full_name || '',
+            username: (profile as any).username || '',
+            avatar_url: (profile as any).avatar_url
+          };
+        }
+      }
+      
       const transformedMessage = {
         ...data,
-        profiles: data.profiles ? {
-          id: data.profiles.user_id,
-          full_name: data.profiles.full_name || '',
-          username: data.profiles.username || '',
-          avatar_url: data.profiles.avatar_url
-        } : null
+        profiles: profileData
       };
       
       setMessages(prev => [...prev, transformedMessage]);
