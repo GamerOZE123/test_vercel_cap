@@ -105,7 +105,7 @@ export default function CreateJobModal({ open, onOpenChange }: CreateJobModalPro
         job_type: formData.job_type,
         experience_level: formData.experience_level || null,
         skills_required: skills.length > 0 ? skills : null,
-        application_deadline: formData.application_deadline ? new Date(formData.application_deadline).toISOString().split('T')[0] : null,
+        application_deadline: formData.application_deadline ? formData.application_deadline : null,
         is_active: true
       };
 
