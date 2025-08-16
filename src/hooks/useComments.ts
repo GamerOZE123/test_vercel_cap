@@ -37,7 +37,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -50,17 +50,17 @@ export const useComments = (postId: string) => {
       
       console.log('Fetched comments:', data);
       
-      // Transform the data to ensure profiles is a single object or null
-      const transformedComments = data?.map(comment => ({
+      // Transform the data to handle profiles array properly
+      const transformedComments: Comment[] = (data || []).map(comment => ({
         ...comment,
         profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
-      })) || [];
+      }));
       
       setComments(transformedComments);
       setCommentsCount(transformedComments.length);
 
       // Update post comments count
-      if (transformedComments) {
+      if (transformedComments.length >= 0) {
         const { error: updateError } = await supabase
           .from('posts')
           .update({ comments_count: transformedComments.length })
@@ -96,7 +96,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -111,8 +111,8 @@ export const useComments = (postId: string) => {
       
       console.log('Comment added successfully:', data);
       
-      // Transform the data to ensure profiles is a single object or null
-      const transformedComment = {
+      // Transform the data to handle profiles array properly
+      const transformedComment: Comment = {
         ...data,
         profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
       };

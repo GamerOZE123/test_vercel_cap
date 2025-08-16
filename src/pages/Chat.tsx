@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
 import UserSearch from '@/components/chat/UserSearch';
 import MobileChatHeader from '@/components/chat/MobileChatHeader';
-import ChatOverlayIcons from '@/components/chat/ChatOverlayIcons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -27,7 +25,7 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('');
   const [showUserList, setShowUserList] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
-  const [unseenMessages, setUnseenMessages] = useState<Set<string>>(new Set());
+  const [unreadMessages, setUnreadMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
@@ -83,12 +81,6 @@ export default function Chat() {
   useEffect(() => {
     if (selectedConversationId) {
       fetchMessages(selectedConversationId);
-      // Mark messages as seen when conversation is opened
-      setUnseenMessages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(selectedConversationId);
-        return newSet;
-      });
     }
   }, [selectedConversationId, fetchMessages]);
 
@@ -109,6 +101,13 @@ export default function Chat() {
         const conversationId = await createConversation(userId);
         setSelectedConversationId(conversationId);
         await addRecentChat(userId);
+        
+        // Mark messages as read
+        setUnreadMessages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
         
         if (isMobile) {
           setShowUserList(false);
@@ -216,7 +215,6 @@ export default function Chat() {
   if (!isMobile) {
     return (
       <Layout>
-        <ChatOverlayIcons />
         <div className="h-[calc(100vh-8rem)] flex gap-6">
           {/* User List */}
           <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
@@ -229,14 +227,14 @@ export default function Chat() {
               {recentChats.map((chat) => (
                 <div
                   key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors relative"
                   onClick={() => handleUserClick(chat.other_user_id)}
                 >
                   <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center relative">
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
-                    {unseenMessages.has(chat.other_user_id) && (
+                    {unreadMessages.has(chat.other_user_id) && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                     )}
                   </div>
@@ -362,12 +360,11 @@ export default function Chat() {
     );
   }
 
-  // Mobile Layout - No header, overlay icons included
+  // Mobile Layout
   return (
     <>
-      <ChatOverlayIcons />
       {showUserList ? (
-        <div className="min-h-screen bg-background flex flex-col pb-16">
+        <MobileLayout showHeader={false} showNavigation={true}>
           <div className="p-4">
             <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
             
@@ -385,7 +382,7 @@ export default function Chat() {
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
-                    {unseenMessages.has(chat.other_user_id) && (
+                    {unreadMessages.has(chat.other_user_id) && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                     )}
                   </div>
@@ -397,7 +394,7 @@ export default function Chat() {
               ))}
             </div>
           </div>
-        </div>
+        </MobileLayout>
       ) : (
         <div className="min-h-screen bg-background flex flex-col">
           <MobileChatHeader
