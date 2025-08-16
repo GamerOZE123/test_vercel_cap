@@ -58,11 +58,19 @@ export const useComments = (postId: string) => {
       // Transform the data to handle profiles properly
       const transformedComments: Comment[] = (data || []).map(comment => ({
         ...comment,
-        profiles: comment.profiles ? {
-          full_name: comment.profiles.full_name || '',
-          username: comment.profiles.username || '',
-          avatar_url: comment.profiles.avatar_url || undefined
-        } : null
+        profiles: Array.isArray(comment.profiles) && comment.profiles.length > 0 
+          ? {
+              full_name: comment.profiles[0].full_name || '',
+              username: comment.profiles[0].username || '',
+              avatar_url: comment.profiles[0].avatar_url || undefined
+            }
+          : comment.profiles && !Array.isArray(comment.profiles)
+          ? {
+              full_name: comment.profiles.full_name || '',
+              username: comment.profiles.username || '',
+              avatar_url: comment.profiles.avatar_url || undefined
+            }
+          : null
       }));
       
       setComments(transformedComments);
@@ -123,11 +131,19 @@ export const useComments = (postId: string) => {
       // Transform the data to handle profiles properly
       const transformedComment: Comment = {
         ...data,
-        profiles: data.profiles ? {
-          full_name: data.profiles.full_name || '',
-          username: data.profiles.username || '',
-          avatar_url: data.profiles.avatar_url || undefined
-        } : null
+        profiles: Array.isArray(data.profiles) && data.profiles.length > 0
+          ? {
+              full_name: data.profiles[0].full_name || '',
+              username: data.profiles[0].username || '',
+              avatar_url: data.profiles[0].avatar_url || undefined
+            }
+          : data.profiles && !Array.isArray(data.profiles)
+          ? {
+              full_name: data.profiles.full_name || '',
+              username: data.profiles.username || '',
+              avatar_url: data.profiles.avatar_url || undefined
+            }
+          : null
       };
       
       setComments(prev => [...prev, transformedComment]);

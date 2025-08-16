@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { ArrowLeft, Send, MoreVertical, Trash2, UserX, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ interface Message {
   id: string;
   content: string;
   created_at: string;
-  user_id: string;
+  sender_id: string;
   conversation_id: string;
   profiles: UserProfile | null;
 }
@@ -31,35 +32,40 @@ interface Message {
 interface Conversation {
   id: string;
   created_at: string;
-  user_id_1: string;
-  user_id_2: string;
-  profiles_1?: UserProfile;
-  profiles_2?: UserProfile;
+  updated_at: string;
 }
 
 export default function Chat() {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const { user } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(conversationId || null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
       fetchUsers();
       fetchConversations();
+      fetchBlockedUsers();
     }
   }, [user]);
 
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
+      // Mark messages as read when viewing conversation
+      setUnreadMessages(prev => ({
+        ...prev,
+        [selectedConversation]: false
+      }));
     } else {
       setMessages([]);
     }
@@ -77,14 +83,39 @@ export default function Chat() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, avatar_url')
-        .neq('id', user?.id);
+        .select('id, full_name, username, avatar_url, user_id')
+        .neq('user_id', user?.id);
 
       if (error) throw error;
-      setUsers(data || []);
+      
+      // Transform the data to match the expected interface
+      const transformedUsers = (data || []).map(profile => ({
+        id: profile.user_id,
+        full_name: profile.full_name || '',
+        username: profile.username || '',
+        avatar_url: profile.avatar_url
+      }));
+      
+      setUsers(transformedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
+    }
+  };
+
+  const fetchBlockedUsers = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('blocked_id')
+        .eq('blocker_id', user.id);
+
+      if (error) throw error;
+      setBlockedUsers((data || []).map(block => block.blocked_id));
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
     }
   };
 
@@ -92,18 +123,9 @@ export default function Chat() {
     if (!user) return;
 
     try {
+      // Use the existing function to get user conversations
       const { data, error } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          created_at,
-          user_id_1,
-          user_id_2,
-          profiles_1:profiles!conversations_user_id_1_fkey(id, full_name, username, avatar_url),
-          profiles_2:profiles!conversations_user_id_2_fkey(id, full_name, username, avatar_url)
-        `)
-        .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+        .rpc('get_user_conversations', { target_user_id: user.id });
 
       if (error) throw error;
       setConversations(data || []);
@@ -123,15 +145,27 @@ export default function Chat() {
           id,
           content,
           created_at,
-          user_id,
+          sender_id,
           conversation_id,
-          profiles:profiles!messages_user_id_fkey(id, full_name, username, avatar_url)
+          profiles:profiles!messages_sender_id_fkey(id, full_name, username, avatar_url, user_id)
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Transform the data to match the expected interface
+      const transformedMessages = (data || []).map(message => ({
+        ...message,
+        profiles: message.profiles ? {
+          id: message.profiles.user_id,
+          full_name: message.profiles.full_name || '',
+          username: message.profiles.username || '',
+          avatar_url: message.profiles.avatar_url
+        } : null
+      }));
+      
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load messages');
@@ -142,18 +176,18 @@ export default function Chat() {
     if (!user) return;
 
     try {
+      // Use the existing function to get or create conversation
       const { data, error } = await supabase
-        .from('conversations')
-        .insert({
-          user_id_1: user.id,
-          user_id_2: userId
-        })
-        .select('*')
-        .single();
+        .rpc('get_or_create_conversation', { 
+          user1_id: user.id, 
+          user2_id: userId 
+        });
 
       if (error) throw error;
-      setConversations(prev => [data, ...prev]);
-      setSelectedConversation(data.id);
+      
+      setSelectedConversation(data);
+      // Refresh conversations to show the new one
+      fetchConversations();
     } catch (error) {
       console.error('Error creating conversation:', error);
       toast.error('Failed to create conversation');
@@ -169,21 +203,33 @@ export default function Chat() {
         .from('messages')
         .insert({
           content: newMessage.trim(),
-          user_id: user.id,
+          sender_id: user.id,
           conversation_id: selectedConversation
         })
         .select(`
           id,
           content,
           created_at,
-          user_id,
+          sender_id,
           conversation_id,
-          profiles:profiles!messages_user_id_fkey(id, full_name, username, avatar_url)
+          profiles:profiles!messages_sender_id_fkey(id, full_name, username, avatar_url, user_id)
         `)
         .single();
 
       if (error) throw error;
-      setMessages(prev => [...prev, data]);
+      
+      // Transform the data to match the expected interface
+      const transformedMessage = {
+        ...data,
+        profiles: data.profiles ? {
+          id: data.profiles.user_id,
+          full_name: data.profiles.full_name || '',
+          username: data.profiles.username || '',
+          avatar_url: data.profiles.avatar_url
+        } : null
+      };
+      
+      setMessages(prev => [...prev, transformedMessage]);
       setNewMessage('');
       scrollToBottom();
     } catch (error) {
@@ -191,6 +237,27 @@ export default function Chat() {
       toast.error('Failed to send message');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const clearChat = async (conversationId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      if (error) throw error;
+      
+      if (selectedConversation === conversationId) {
+        setMessages([]);
+      }
+      toast.success('Chat cleared!');
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      toast.error('Failed to clear chat');
     }
   };
 
@@ -202,7 +269,8 @@ export default function Chat() {
         .eq('id', conversationId);
 
       if (error) throw error;
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      
+      setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
       setSelectedConversation(null);
       setMessages([]);
       toast.success('Conversation deleted!');
@@ -213,8 +281,19 @@ export default function Chat() {
   };
 
   const blockUser = async (userId: string) => {
+    if (!user) return;
+
     try {
-      // Implement block user logic here
+      const { error } = await supabase
+        .from('blocked_users')
+        .insert({
+          blocker_id: user.id,
+          blocked_id: userId
+        });
+
+      if (error) throw error;
+      
+      setBlockedUsers(prev => [...prev, userId]);
       toast.success('User blocked!');
     } catch (error) {
       console.error('Error blocking user:', error);
@@ -223,13 +302,35 @@ export default function Chat() {
   };
 
   const unblockUser = async (userId: string) => {
+    if (!user) return;
+
     try {
-      // Implement unblock user logic here
+      const { error } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', userId);
+
+      if (error) throw error;
+      
+      setBlockedUsers(prev => prev.filter(id => id !== userId));
       toast.success('User unblocked!');
     } catch (error) {
       console.error('Error unblocking user:', error);
       toast.error('Failed to unblock user');
     }
+  };
+
+  const getCurrentConversation = () => {
+    return conversations.find(c => c.conversation_id === selectedConversation);
+  };
+
+  const getOtherUserId = (conversation: any) => {
+    return conversation?.other_user_id;
+  };
+
+  const isUserBlocked = (userId: string) => {
+    return blockedUsers.includes(userId);
   };
 
   // Desktop Layout
@@ -252,17 +353,24 @@ export default function Chat() {
             </ul>
             <h2 className="text-lg font-semibold mt-6 mb-4">Conversations</h2>
             <ul className="space-y-2">
-              {conversations.map(conversation => {
-                const otherUser = conversation.user_id_1 === user?.id ? conversation.profiles_2 : conversation.profiles_1;
-                return (
-                  <li key={conversation.id} className={`flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${selectedConversation === conversation.id ? 'bg-muted/50' : ''}`} onClick={() => setSelectedConversation(conversation.id)}>
+              {conversations.map(conversation => (
+                <li key={conversation.conversation_id} className={`flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer relative ${selectedConversation === conversation.conversation_id ? 'bg-muted/50' : ''}`} onClick={() => setSelectedConversation(conversation.conversation_id)}>
+                  <div className="relative">
                     <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">{otherUser?.full_name?.charAt(0).toUpperCase() || otherUser?.username?.charAt(0).toUpperCase() || 'U'}</span>
+                      <span className="text-xs font-bold text-white">{conversation.other_user_name?.charAt(0).toUpperCase() || 'U'}</span>
                     </div>
-                    <p className="text-sm font-medium">{otherUser?.full_name || otherUser?.username || 'Unknown User'}</p>
-                  </li>
-                );
-              })}
+                    {unreadMessages[conversation.conversation_id] && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{conversation.other_user_name || 'Unknown User'}</p>
+                    {conversation.last_message && (
+                      <p className="text-xs text-muted-foreground truncate">{conversation.last_message}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -273,7 +381,7 @@ export default function Chat() {
                 {/* Chat Header */}
                 <div className="p-4 border-b border-border flex items-center justify-between">
                   <h3 className="text-lg font-semibold">
-                    {conversations.find(c => c.id === selectedConversation && (c.profiles_1?.full_name || c.profiles_1?.username || c.profiles_2?.full_name || c.profiles_2?.username))?.profiles_1?.full_name || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.full_name || c.profiles_1?.username || c.profiles_2?.full_name || c.profiles_2?.username))?.profiles_1?.username || 'Chat'}
+                    {getCurrentConversation()?.other_user_name || 'Chat'}
                   </h3>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -283,28 +391,52 @@ export default function Chat() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => clearChat(selectedConversation)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Clear Chat
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => deleteConversation(selectedConversation)}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Conversation
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => blockUser(conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_1?.id || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_2?.id || '')}>
-                        <UserX className="mr-2 h-4 w-4" />
-                        Block User
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => unblockUser(conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_1?.id || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_2?.id || '')}>
-                        <UserCheck className="mr-2 h-4 w-4" />
-                        Unblock User
-                      </DropdownMenuItem>
+                      {getOtherUserId(getCurrentConversation()) && (
+                        <>
+                          {isUserBlocked(getOtherUserId(getCurrentConversation())) ? (
+                            <DropdownMenuItem onClick={() => unblockUser(getOtherUserId(getCurrentConversation()))}>
+                              <UserCheck className="mr-2 h-4 w-4" />
+                              Unblock User
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => blockUser(getOtherUserId(getCurrentConversation()))}>
+                              <UserX className="mr-2 h-4 w-4" />
+                              Block User
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
 
                 {/* Chat Messages */}
                 <div className="flex-1 p-4 overflow-y-auto">
+                  {getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation())) && (
+                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                      <p className="text-sm">You have blocked this user. You won't receive new messages from them.</p>
+                      <div className="mt-2 flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => unblockUser(getOtherUserId(getCurrentConversation()))}>
+                          Unblock User
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => deleteConversation(selectedConversation)}>
+                          Delete Chat
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <ul className="space-y-3">
                     {messages.map(message => (
-                      <li key={message.id} className={`flex flex-col ${message.user_id === user?.id ? 'items-end' : 'items-start'}`}>
-                        <div className={`rounded-xl p-3 ${message.user_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <li key={message.id} className={`flex flex-col ${message.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
+                        <div className={`rounded-xl p-3 ${message.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                           <p className="text-sm">{message.content}</p>
                         </div>
                         <span className="text-xs text-muted-foreground mt-1">{new Date(message.created_at).toLocaleTimeString()}</span>
@@ -327,8 +459,9 @@ export default function Chat() {
                           sendMessage();
                         }
                       }}
+                      disabled={getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation()))}
                     />
-                    <Button onClick={sendMessage} disabled={submitting}>
+                    <Button onClick={sendMessage} disabled={submitting || (getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation())))}>
                       <Send className="w-4 h-4 mr-2" />
                       Send
                     </Button>
@@ -354,7 +487,7 @@ export default function Chat() {
           <div className="flex items-center gap-4">
             <ArrowLeft className="w-5 h-5 cursor-pointer" onClick={() => window.history.back()} />
             <h3 className="text-lg font-semibold">
-              {conversations.find(c => c.id === selectedConversation && (c.profiles_1?.full_name || c.profiles_1?.username || c.profiles_2?.full_name || c.profiles_2?.username))?.profiles_1?.full_name || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.full_name || c.profiles_1?.username || c.profiles_2?.full_name || c.profiles_2?.username))?.profiles_1?.username || 'Chat'}
+              {getCurrentConversation()?.other_user_name || 'Chat'}
             </h3>
           </div>
           <DropdownMenu>
@@ -365,28 +498,52 @@ export default function Chat() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => deleteConversation(selectedConversation)}>
+              <DropdownMenuItem onClick={() => clearChat(selectedConversation || '')}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => deleteConversation(selectedConversation || '')}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete Conversation
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => blockUser(conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_1?.id || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_2?.id || '')}>
-                <UserX className="mr-2 h-4 w-4" />
-                Block User
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => unblockUser(conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_1?.id || conversations.find(c => c.id === selectedConversation && (c.profiles_1?.id || c.profiles_2?.id))?.profiles_2?.id || '')}>
-                <UserCheck className="mr-2 h-4 w-4" />
-                Unblock User
-              </DropdownMenuItem>
+              {getOtherUserId(getCurrentConversation()) && (
+                <>
+                  {isUserBlocked(getOtherUserId(getCurrentConversation())) ? (
+                    <DropdownMenuItem onClick={() => unblockUser(getOtherUserId(getCurrentConversation()))}>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Unblock User
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => blockUser(getOtherUserId(getCurrentConversation()))}>
+                      <UserX className="mr-2 h-4 w-4" />
+                      Block User
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         {/* Chat Messages */}
         <div className="flex-1 p-4 overflow-y-auto">
+          {getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation())) && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+              <p className="text-sm">You have blocked this user. You won't receive new messages from them.</p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => unblockUser(getOtherUserId(getCurrentConversation()))}>
+                  Unblock User
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => deleteConversation(selectedConversation || '')}>
+                  Delete Chat
+                </Button>
+              </div>
+            </div>
+          )}
           <ul className="space-y-3">
             {messages.map(message => (
-              <li key={message.id} className={`flex flex-col ${message.user_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`rounded-xl p-3 ${message.user_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+              <li key={message.id} className={`flex flex-col ${message.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
+                <div className={`rounded-xl p-3 ${message.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                   <p className="text-sm">{message.content}</p>
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">{new Date(message.created_at).toLocaleTimeString()}</span>
@@ -409,8 +566,9 @@ export default function Chat() {
                   sendMessage();
                 }
               }}
+              disabled={getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation()))}
             />
-            <Button onClick={sendMessage} disabled={submitting}>
+            <Button onClick={sendMessage} disabled={submitting || (getOtherUserId(getCurrentConversation()) && isUserBlocked(getOtherUserId(getCurrentConversation())))}>
               <Send className="w-4 h-4 mr-2" />
               Send
             </Button>
