@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,7 +37,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -49,20 +50,14 @@ export const useComments = (postId: string) => {
       
       console.log('Fetched comments:', data);
       
-      // Transform the data to match our interface
-      const transformedComments = data?.map(comment => ({
-        ...comment,
-        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
-      })) || [];
-      
-      setComments(transformedComments);
-      setCommentsCount(transformedComments.length);
+      setComments(data || []);
+      setCommentsCount(data?.length || 0);
 
       // Update post comments count
-      if (transformedComments) {
+      if (data) {
         const { error: updateError } = await supabase
           .from('posts')
-          .update({ comments_count: transformedComments.length })
+          .update({ comments_count: data.length })
           .eq('id', postId);
 
         if (updateError) console.error('Error updating comments count:', updateError);
@@ -95,7 +90,7 @@ export const useComments = (postId: string) => {
           created_at,
           user_id,
           post_id,
-          profiles!comments_user_id_fkey (
+          profiles (
             full_name,
             username,
             avatar_url
@@ -110,13 +105,7 @@ export const useComments = (postId: string) => {
       
       console.log('Comment added successfully:', data);
       
-      // Transform the data to match our interface
-      const transformedComment = {
-        ...data,
-        profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
-      };
-      
-      setComments(prev => [...prev, transformedComment]);
+      setComments(prev => [...prev, data]);
       setCommentsCount(prev => prev + 1);
       toast.success('Comment added!');
       return true;

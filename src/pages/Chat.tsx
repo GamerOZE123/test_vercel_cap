@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -26,6 +25,7 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('');
   const [showUserList, setShowUserList] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
@@ -101,6 +101,13 @@ export default function Chat() {
         const conversationId = await createConversation(userId);
         setSelectedConversationId(conversationId);
         await addRecentChat(userId);
+        
+        // Mark messages as read
+        setUnreadMessages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
         
         if (isMobile) {
           setShowUserList(false);
@@ -220,13 +227,16 @@ export default function Chat() {
               {recentChats.map((chat) => (
                 <div
                   key={chat.other_user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors relative"
                   onClick={() => handleUserClick(chat.other_user_id)}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center relative">
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
+                    {unreadMessages.has(chat.other_user_id) && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{chat.other_user_name}</p>
@@ -354,7 +364,7 @@ export default function Chat() {
   return (
     <>
       {showUserList ? (
-        <MobileLayout showHeader={true} showNavigation={true}>
+        <MobileLayout showHeader={false} showNavigation={true}>
           <div className="p-4">
             <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
             
@@ -368,10 +378,13 @@ export default function Chat() {
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => handleUserClick(chat.other_user_id)}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center relative">
                     <span className="text-sm font-bold text-white">
                       {chat.other_user_name?.charAt(0) || 'U'}
                     </span>
+                    {unreadMessages.has(chat.other_user_id) && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{chat.other_user_name}</p>
