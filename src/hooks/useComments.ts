@@ -56,22 +56,26 @@ export const useComments = (postId: string) => {
       console.log('Fetched comments data:', data);
       
       // Transform the data to handle profiles properly
-      const transformedComments: Comment[] = (data || []).map(comment => ({
-        ...comment,
-        profiles: Array.isArray(comment.profiles) && comment.profiles.length > 0 
-          ? {
-              full_name: comment.profiles[0].full_name || '',
-              username: comment.profiles[0].username || '',
-              avatar_url: comment.profiles[0].avatar_url || undefined
-            }
-          : comment.profiles && !Array.isArray(comment.profiles)
-          ? {
-              full_name: comment.profiles.full_name || '',
-              username: comment.profiles.username || '',
-              avatar_url: comment.profiles.avatar_url || undefined
-            }
-          : null
-      }));
+      const transformedComments: Comment[] = (data || []).map(comment => {
+        let profileData = null;
+        
+        if (comment.profiles) {
+          // Handle both array and object cases safely
+          const profile = Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles;
+          if (profile && typeof profile === 'object') {
+            profileData = {
+              full_name: (profile as any).full_name || '',
+              username: (profile as any).username || '',
+              avatar_url: (profile as any).avatar_url || undefined
+            };
+          }
+        }
+        
+        return {
+          ...comment,
+          profiles: profileData
+        };
+      });
       
       setComments(transformedComments);
       setCommentsCount(transformedComments.length);
@@ -129,21 +133,21 @@ export const useComments = (postId: string) => {
       console.log('Comment added successfully:', data);
       
       // Transform the data to handle profiles properly
+      let profileData = null;
+      if (data.profiles) {
+        const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+        if (profile && typeof profile === 'object') {
+          profileData = {
+            full_name: (profile as any).full_name || '',
+            username: (profile as any).username || '',
+            avatar_url: (profile as any).avatar_url || undefined
+          };
+        }
+      }
+      
       const transformedComment: Comment = {
         ...data,
-        profiles: Array.isArray(data.profiles) && data.profiles.length > 0
-          ? {
-              full_name: data.profiles[0].full_name || '',
-              username: data.profiles[0].username || '',
-              avatar_url: data.profiles[0].avatar_url || undefined
-            }
-          : data.profiles && !Array.isArray(data.profiles)
-          ? {
-              full_name: data.profiles.full_name || '',
-              username: data.profiles.username || '',
-              avatar_url: data.profiles.avatar_url || undefined
-            }
-          : null
+        profiles: profileData
       };
       
       setComments(prev => [...prev, transformedComment]);
