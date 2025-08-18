@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +17,11 @@ import {
   Award,
   User
 } from 'lucide-react';
+import { useWorkouts } from '@/hooks/useWorkouts';
+import { useFitnessChallenges } from '@/hooks/useFitnessChallenges';
+import WorkoutLogModal from '@/components/fitness/WorkoutLogModal';
+import CreateChallengeModal from '@/components/fitness/CreateChallengeModal';
+import { toast } from 'sonner';
 
 const fitnessStats = [
   { label: 'Weekly Workouts', value: '5', icon: Dumbbell, color: 'text-blue-500' },
@@ -119,6 +123,20 @@ const gymSchedule = [
 
 export default function FitnessPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule'>('overview');
+  const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  
+  const { workouts, loading: workoutsLoading } = useWorkouts();
+  const { challenges, userChallenges, loading: challengesLoading, joinChallenge } = useFitnessChallenges();
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    try {
+      await joinChallenge(challengeId);
+      toast.success('Successfully joined the challenge!');
+    } catch (error) {
+      toast.error('Failed to join challenge');
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -138,53 +156,52 @@ export default function FitnessPage() {
               ))}
             </div>
 
-            {/* Progress Chart Placeholder */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Weekly Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 bg-surface rounded-lg flex items-center justify-center">
-                  <p className="text-muted-foreground">Progress chart would go here</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Quick Actions */}
+            <div className="flex gap-4">
+              <Button onClick={() => setIsWorkoutModalOpen(true)} className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Log Workout
+              </Button>
+              <Button variant="outline" onClick={() => setIsChallengeModalOpen(true)} className="flex items-center gap-2">
+                <Trophy className="w-4 h-4" />
+                Create Challenge
+              </Button>
+            </div>
 
-            {/* Recent Activities */}
+            {/* Recent Workouts */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activities</CardTitle>
+                <CardTitle>Recent Workouts</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-surface rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                        <Dumbbell className="w-5 h-5 text-white" />
+                {workoutsLoading ? (
+                  <p className="text-center text-muted-foreground">Loading workouts...</p>
+                ) : workouts.length === 0 ? (
+                  <p className="text-center text-muted-foreground">No workouts logged yet. Start by logging your first workout!</p>
+                ) : (
+                  <div className="space-y-3">
+                    {workouts.slice(0, 5).map((workout) => (
+                      <div key={workout.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                            <Dumbbell className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{workout.workout_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {workout.duration_minutes} minutes
+                              {workout.calories_burned && ` • ${workout.calories_burned} calories`}
+                              {workout.workout_type && ` • ${workout.workout_type}`}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(workout.created_at).toLocaleDateString()}
+                        </span>
                       </div>
-                      <div>
-                        <p className="font-medium">Upper Body Strength</p>
-                        <p className="text-sm text-muted-foreground">45 minutes • 280 calories</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground">2 hours ago</span>
+                    ))}
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-surface rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                        <Heart className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Morning Run</p>
-                        <p className="text-sm text-muted-foreground">30 minutes • 320 calories</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground">Yesterday</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -195,54 +212,73 @@ export default function FitnessPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Fitness Challenges</h2>
-              <Button className="flex items-center gap-2">
+              <Button onClick={() => setIsChallengeModalOpen(true)} className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Create Challenge
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activeChallenges.map((challenge) => (
-                <Card key={challenge.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <Trophy className="w-8 h-8 text-yellow-500" />
-                      <span className="text-sm text-muted-foreground">{challenge.daysLeft} days left</span>
-                    </div>
-                    <CardTitle className="text-lg">{challenge.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{challenge.description}</p>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{challenge.progress}%</span>
-                      </div>
-                      <div className="w-full bg-surface rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${challenge.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
+            {challengesLoading ? (
+              <p className="text-center text-muted-foreground">Loading challenges...</p>
+            ) : challenges.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Trophy className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No active challenges yet. Be the first to create one!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {challenges.map((challenge) => {
+                  const isJoined = userChallenges.some(uc => uc.challenge_id === challenge.id);
+                  const daysLeft = Math.ceil((new Date(challenge.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  return (
+                    <Card key={challenge.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <Trophy className="w-8 h-8 text-yellow-500" />
+                          <span className="text-sm text-muted-foreground">
+                            {daysLeft > 0 ? `${daysLeft} days left` : 'Ended'}
+                          </span>
+                        </div>
+                        <CardTitle className="text-lg">{challenge.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {challenge.description && (
+                          <p className="text-sm text-muted-foreground">{challenge.description}</p>
+                        )}
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Target</span>
+                            <span>{challenge.target_value} {challenge.target_unit}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Type</span>
+                            <span className="capitalize">{challenge.challenge_type}</span>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {challenge.participants} participants
-                      </div>
-                    </div>
+                        {challenge.prize_description && (
+                          <div className="p-3 bg-surface rounded-lg">
+                            <p className="text-sm font-medium text-foreground">{challenge.prize_description}</p>
+                          </div>
+                        )}
 
-                    <div className="p-3 bg-surface rounded-lg">
-                      <p className="text-sm font-medium text-foreground">{challenge.prize}</p>
-                    </div>
-
-                    <Button className="w-full">Join Challenge</Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        <Button 
+                          className="w-full" 
+                          disabled={isJoined || daysLeft <= 0}
+                          onClick={() => handleJoinChallenge(challenge.id)}
+                        >
+                          {isJoined ? 'Already Joined' : daysLeft <= 0 ? 'Challenge Ended' : 'Join Challenge'}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
 
@@ -438,6 +474,16 @@ export default function FitnessPage() {
 
       {/* Tab Content */}
       {renderTabContent()}
+
+      {/* Modals */}
+      <WorkoutLogModal 
+        isOpen={isWorkoutModalOpen}
+        onClose={() => setIsWorkoutModalOpen(false)}
+      />
+      <CreateChallengeModal 
+        isOpen={isChallengeModalOpen}
+        onClose={() => setIsChallengeModalOpen(false)}
+      />
     </div>
   );
 }

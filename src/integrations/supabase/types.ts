@@ -112,6 +112,73 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_participants: {
+        Row: {
+          challenge_id: string
+          current_progress: number | null
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          current_progress?: number | null
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          current_progress?: number | null
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_participants_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "fitness_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_progress: {
+        Row: {
+          challenge_id: string
+          id: string
+          notes: string | null
+          progress_value: number
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          id?: string
+          notes?: string | null
+          progress_value: number
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          id?: string
+          notes?: string | null
+          progress_value?: number
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "fitness_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_memberships: {
         Row: {
           club_id: string
@@ -319,6 +386,54 @@ export type Database = {
           id?: string
           reason?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      fitness_challenges: {
+        Row: {
+          challenge_type: string
+          created_at: string
+          creator_id: string
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          max_participants: number | null
+          prize_description: string | null
+          start_date: string
+          target_unit: string
+          target_value: number
+          title: string
+        }
+        Insert: {
+          challenge_type: string
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          max_participants?: number | null
+          prize_description?: string | null
+          start_date: string
+          target_unit: string
+          target_value: number
+          title: string
+        }
+        Update: {
+          challenge_type?: string
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          max_participants?: number | null
+          prize_description?: string | null
+          start_date?: string
+          target_unit?: string
+          target_value?: number
+          title?: string
         }
         Relationships: []
       }
@@ -944,6 +1059,39 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      workout_sessions: {
+        Row: {
+          calories_burned: number | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          notes: string | null
+          user_id: string
+          workout_name: string
+          workout_type: string | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          notes?: string | null
+          user_id: string
+          workout_name: string
+          workout_type?: string | null
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          user_id?: string
+          workout_name?: string
+          workout_type?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
