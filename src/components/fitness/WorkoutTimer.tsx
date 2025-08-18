@@ -7,24 +7,43 @@ interface WorkoutTimerProps {
   isOpen: boolean;
   onClose: () => void;
   workoutName?: string;
+  duration?: number; // Duration in minutes
 }
 
-export default function WorkoutTimer({ isOpen, onClose, workoutName = "Workout" }: WorkoutTimerProps) {
-  const [time, setTime] = useState(0);
+export default function WorkoutTimer({ isOpen, onClose, workoutName = "Workout", duration = 15 }: WorkoutTimerProps) {
+  const [timeLeft, setTimeLeft] = useState(duration * 60); // Convert minutes to seconds
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  useEffect(() => {
+    // Reset timer when modal opens with new duration
+    if (isOpen) {
+      setTimeLeft(duration * 60);
+      setIsRunning(false);
+      setIsPaused(false);
+      setIsCompleted(false);
+    }
+  }, [isOpen, duration]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (isRunning && !isPaused) {
+    if (isRunning && !isPaused && timeLeft > 0) {
       interval = setInterval(() => {
-        setTime(prevTime => prevTime + 1);
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            setIsRunning(false);
+            setIsCompleted(true);
+            return 0;
+          }
+          return prevTime - 1;
+        });
       }, 1000);
     }
     
     return () => clearInterval(interval);
-  }, [isRunning, isPaused]);
+  }, [isRunning, isPaused, timeLeft]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -53,7 +72,8 @@ export default function WorkoutTimer({ isOpen, onClose, workoutName = "Workout" 
   const handleStop = () => {
     setIsRunning(false);
     setIsPaused(false);
-    setTime(0);
+    setTimeLeft(duration * 60);
+    setIsCompleted(false);
   };
 
   const handleClose = () => {
@@ -79,13 +99,23 @@ export default function WorkoutTimer({ isOpen, onClose, workoutName = "Workout" 
       <h1 className="text-white text-2xl font-bold mb-8">{workoutName}</h1>
 
       {/* Timer Display */}
-      <div className="text-white text-8xl md:text-9xl font-mono font-bold mb-12">
-        {formatTime(time)}
+      <div className={`text-white text-8xl md:text-9xl font-mono font-bold mb-12 ${
+        isCompleted ? 'text-green-400' : timeLeft <= 60 ? 'text-red-400' : ''
+      }`}>
+        {formatTime(timeLeft)}
       </div>
+
+      {/* Completion Message */}
+      {isCompleted && (
+        <div className="text-white text-xl mb-8 text-center">
+          <p className="text-green-400 font-bold">Workout Complete!</p>
+          <p className="text-sm opacity-80">Great job finishing your workout!</p>
+        </div>
+      )}
 
       {/* Control Buttons */}
       <div className="flex gap-6">
-        {!isRunning ? (
+        {!isRunning && !isCompleted ? (
           <Button
             onClick={handleStart}
             size="lg"
@@ -93,6 +123,14 @@ export default function WorkoutTimer({ isOpen, onClose, workoutName = "Workout" 
           >
             <Play className="w-6 h-6 mr-2" />
             Start
+          </Button>
+        ) : isCompleted ? (
+          <Button
+            onClick={handleClose}
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
+          >
+            Done
           </Button>
         ) : (
           <>

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +17,8 @@ import {
   Award,
   User,
   Play,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useFitnessChallenges } from '@/hooks/useFitnessChallenges';
@@ -27,6 +27,8 @@ import CreateChallengeModal from '@/components/fitness/CreateChallengeModal';
 import WorkoutTimer from '@/components/fitness/WorkoutTimer';
 import FitnessNavigation from '@/components/fitness/FitnessNavigation';
 import ChallengeDetailModal from '@/components/fitness/ChallengeDetailModal';
+import AddQuickWorkoutModal from '@/components/fitness/AddQuickWorkoutModal';
+import AddToScheduleModal from '@/components/fitness/AddToScheduleModal';
 import { toast } from 'sonner';
 
 type TabType = 'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule';
@@ -61,56 +63,19 @@ const workoutBuddies = [
   }
 ];
 
-const predefinedWorkouts = [
-  {
-    id: 1,
-    title: '15-Min HIIT Blast',
-    duration: 15,
-    difficulty: 'Intermediate',
-    equipment: 'None',
-    calories: '150-200'
-  },
-  {
-    id: 2,
-    title: 'Dorm Room Strength',
-    duration: 20,
-    difficulty: 'Beginner',
-    equipment: 'Bodyweight',
-    calories: '100-150'
-  },
-  {
-    id: 3,
-    title: 'Study Break Stretch',
-    duration: 10,
-    difficulty: 'Easy',
-    equipment: 'None',
-    calories: '30-50'
-  },
-  {
-    id: 4,
-    title: 'Core Power Session',
-    duration: 12,
-    difficulty: 'Intermediate',
-    equipment: 'Mat',
-    calories: '80-120'
-  }
-];
-
-const dailyWorkouts = [
-  { time: '6:00 AM', workout: 'Morning Cardio', type: 'Cardio', duration: '30 min' },
-  { time: '12:00 PM', workout: 'Lunch Break Yoga', type: 'Flexibility', duration: '20 min' },
-  { time: '5:00 PM', workout: 'Strength Training', type: 'Strength', duration: '45 min' },
-  { time: '7:00 PM', workout: 'Evening Run', type: 'Cardio', duration: '25 min' }
-];
-
 export default function FitnessPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [isChallengeDetailOpen, setIsChallengeDetailOpen] = useState(false);
+  const [isAddWorkoutModalOpen, setIsAddWorkoutModalOpen] = useState(false);
+  const [isAddToScheduleModalOpen, setIsAddToScheduleModalOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string>('');
+  const [selectedWorkoutDuration, setSelectedWorkoutDuration] = useState<number>(15);
+  const [customWorkouts, setCustomWorkouts] = useState<any[]>([]);
+  const [scheduledWorkouts, setScheduledWorkouts] = useState<any[]>([]);
   
   const { workouts, loading: workoutsLoading } = useWorkouts();
   const { challenges, userChallenges, loading: challengesLoading, joinChallenge } = useFitnessChallenges();
@@ -171,12 +136,31 @@ export default function FitnessPage() {
 
   const handleStartWorkout = (workoutTitle: string, duration?: number) => {
     setSelectedWorkout(workoutTitle);
+    setSelectedWorkoutDuration(duration || 15);
     setIsTimerOpen(true);
   };
 
   const handleViewChallenge = (challenge: any) => {
     setSelectedChallenge(challenge);
     setIsChallengeDetailOpen(true);
+  };
+
+  const handleAddCustomWorkout = (workout: any) => {
+    setCustomWorkouts(prev => [...prev, workout]);
+  };
+
+  const handleDeleteWorkout = (workoutId: number) => {
+    setCustomWorkouts(prev => prev.filter(w => w.id !== workoutId));
+    toast.success('Workout deleted successfully!');
+  };
+
+  const handleAddToSchedule = (workoutsToAdd: any[]) => {
+    setScheduledWorkouts(prev => [...prev, ...workoutsToAdd]);
+  };
+
+  const handleRemoveFromSchedule = (index: number) => {
+    setScheduledWorkouts(prev => prev.filter((_, i) => i !== index));
+    toast.success('Workout removed from schedule!');
   };
 
   const joinedChallenges = challenges.filter(challenge => 
@@ -306,6 +290,7 @@ export default function FitnessPage() {
                 {challenges.map((challenge) => {
                   const isJoined = userChallenges.some(uc => uc.challenge_id === challenge.id);
                   const daysLeft = Math.ceil((new Date(challenge.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  const participantCount = Math.floor(Math.random() * 50) + 1; // Mock participant count
                   
                   return (
                     <Card key={challenge.id} className="hover:shadow-lg transition-shadow">
@@ -332,7 +317,7 @@ export default function FitnessPage() {
                             <span>Participants</span>
                             <span className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
-                              {Math.floor(Math.random() * 50) + 1} joined
+                              {participantCount} joined
                             </span>
                           </div>
                         </div>
@@ -430,21 +415,31 @@ export default function FitnessPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Quick Workouts</h2>
-              <Button onClick={() => setIsWorkoutModalOpen(true)} className="flex items-center gap-2">
+              <Button onClick={() => setIsAddWorkoutModalOpen(true)} className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Add Workout
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {predefinedWorkouts.map((workout) => (
+              {customWorkouts.map((workout) => (
                 <Card key={workout.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-foreground">{workout.title}</h3>
-                        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                          <Dumbbell className="w-5 h-5 text-white" />
+                        <div className="flex gap-2">
+                          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                            <Dumbbell className="w-5 h-5 text-white" />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteWorkout(workout.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
 
@@ -487,41 +482,61 @@ export default function FitnessPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Today's Workouts</h2>
+              <Button onClick={() => setIsAddToScheduleModalOpen(true)} className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add to Schedule
+              </Button>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Recommended Daily Schedule</CardTitle>
+                <CardTitle>Your Workout Schedule</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {dailyWorkouts.map((session, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-surface rounded-lg hover:bg-surface/80 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <p className="font-semibold text-foreground">{session.time}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-foreground">{session.workout}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Timer className="w-4 h-4" />
-                            <span>{session.duration}</span>
-                            <span>•</span>
-                            <span>{session.type}</span>
+                {scheduledWorkouts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No workouts scheduled yet. Add some from your Quick Workouts!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {scheduledWorkouts.map((session, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-surface rounded-lg hover:bg-surface/80 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="text-center">
+                            <p className="font-semibold text-foreground">{session.time}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-foreground">{session.title}</h3>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Timer className="w-4 h-4" />
+                              <span>{session.duration} min</span>
+                              <span>•</span>
+                              <span>{session.type}</span>
+                            </div>
                           </div>
                         </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleStartWorkout(session.title, session.duration)}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            Start
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveFromSchedule(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleStartWorkout(session.workout)}
-                      >
-                        <Play className="w-4 h-4 mr-1" />
-                        Start
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -558,10 +573,22 @@ export default function FitnessPage() {
         isJoined={selectedChallenge ? userChallenges.some(uc => uc.challenge_id === selectedChallenge.id) : false}
         onJoin={handleJoinChallenge}
       />
+      <AddQuickWorkoutModal
+        isOpen={isAddWorkoutModalOpen}
+        onClose={() => setIsAddWorkoutModalOpen(false)}
+        onAdd={handleAddCustomWorkout}
+      />
+      <AddToScheduleModal
+        isOpen={isAddToScheduleModalOpen}
+        onClose={() => setIsAddToScheduleModalOpen(false)}
+        availableWorkouts={customWorkouts}
+        onAdd={handleAddToSchedule}
+      />
       <WorkoutTimer
         isOpen={isTimerOpen}
         onClose={() => setIsTimerOpen(false)}
         workoutName={selectedWorkout}
+        duration={selectedWorkoutDuration}
       />
     </div>
   );
