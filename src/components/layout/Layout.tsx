@@ -13,27 +13,31 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const showUsersSidebar = location.pathname === '/';
+  const isFitnessPage = location.pathname === '/fitness';
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Desktop Sidebar - hidden on fitness page */}
+      {!isFitnessPage && <Sidebar />}
       
-      {/* Header - hidden on mobile */}
-      <Header />
+      {/* Header - hidden on mobile and fitness page */}
+      {!isFitnessPage && <Header />}
       
       {/* Main Content */}
-      <main className={`md:ml-64 md:pt-16 pb-20 md:pb-6 ${showUsersSidebar ? 'xl:mr-80' : ''}`}>
-        <div className="container mx-auto px-4 py-6">
-          {children}
-        </div>
+      <main className={`${!isFitnessPage ? 'md:ml-64 md:pt-16' : ''} ${!isFitnessPage ? 'pb-20 md:pb-6' : ''} ${showUsersSidebar && !isFitnessPage ? 'xl:mr-80' : ''}`}>
+        {!isFitnessPage && (
+          <div className="container mx-auto px-4 py-6">
+            {children}
+          </div>
+        )}
+        {isFitnessPage && children}
       </main>
       
       {/* Users Sidebar - only on home page */}
-      {showUsersSidebar && <UsersSidebar />}
+      {showUsersSidebar && !isFitnessPage && <UsersSidebar />}
       
-      {/* Mobile Navigation */}
-      <MobileNavigation />
+      {/* Mobile Navigation - hidden on fitness page */}
+      {!isFitnessPage && <MobileNavigation />}
     </div>
   );
 }

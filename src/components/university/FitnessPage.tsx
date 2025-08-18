@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -15,50 +16,16 @@ import {
   Clock,
   Zap,
   Award,
-  User
+  User,
+  Play
 } from 'lucide-react';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useFitnessChallenges } from '@/hooks/useFitnessChallenges';
 import WorkoutLogModal from '@/components/fitness/WorkoutLogModal';
 import CreateChallengeModal from '@/components/fitness/CreateChallengeModal';
+import WorkoutTimer from '@/components/fitness/WorkoutTimer';
+import FitnessNavigation from '@/components/fitness/FitnessNavigation';
 import { toast } from 'sonner';
-
-const fitnessStats = [
-  { label: 'Weekly Workouts', value: '5', icon: Dumbbell, color: 'text-blue-500' },
-  { label: 'Calories Burned', value: '2,340', icon: Zap, color: 'text-orange-500' },
-  { label: 'Active Minutes', value: '420', icon: Timer, color: 'text-green-500' },
-  { label: 'Workout Streak', value: '12 days', icon: TrendingUp, color: 'text-purple-500' }
-];
-
-const activeChallenges = [
-  {
-    id: 1,
-    title: '30-Day Push-Up Challenge',
-    description: 'Complete 1,000 push-ups in 30 days',
-    progress: 65,
-    participants: 234,
-    daysLeft: 12,
-    prize: '🏆 Winner gets gym gear package'
-  },
-  {
-    id: 2,
-    title: 'Campus Marathon Prep',
-    description: 'Train for the university marathon together',
-    progress: 40,
-    participants: 89,
-    daysLeft: 45,
-    prize: '🎽 Free marathon registration'
-  },
-  {
-    id: 3,
-    title: 'Healthy Habits Week',
-    description: '7 days of balanced nutrition and exercise',
-    progress: 85,
-    participants: 156,
-    daysLeft: 2,
-    prize: '🥗 Healthy meal vouchers'
-  }
-];
 
 const workoutBuddies = [
   {
@@ -92,6 +59,7 @@ const workoutBuddies = [
 
 const quickWorkouts = [
   {
+    id: 1,
     title: '15-Min HIIT Blast',
     duration: '15 min',
     difficulty: 'Intermediate',
@@ -99,6 +67,7 @@ const quickWorkouts = [
     calories: '150-200'
   },
   {
+    id: 2,
     title: 'Dorm Room Strength',
     duration: '20 min',
     difficulty: 'Beginner',
@@ -106,6 +75,7 @@ const quickWorkouts = [
     calories: '100-150'
   },
   {
+    id: 3,
     title: 'Study Break Stretch',
     duration: '10 min',
     difficulty: 'Easy',
@@ -125,9 +95,51 @@ export default function FitnessPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule'>('overview');
   const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [isTimerOpen, setIsTimerOpen] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<string>('');
   
   const { workouts, loading: workoutsLoading } = useWorkouts();
   const { challenges, userChallenges, loading: challengesLoading, joinChallenge } = useFitnessChallenges();
+
+  // Calculate dynamic fitness stats
+  const fitnessStats = useMemo(() => {
+    const thisWeekWorkouts = workouts.filter(workout => {
+      const workoutDate = new Date(workout.created_at);
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      return workoutDate >= oneWeekAgo;
+    });
+
+    const totalCalories = workouts.reduce((sum, workout) => sum + (workout.calories_burned || 0), 0);
+    const totalMinutes = workouts.reduce((sum, workout) => sum + workout.duration_minutes, 0);
+    
+    // Calculate streak
+    let streak = 0;
+    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    for (const workout of sortedWorkouts) {
+      const workoutDate = new Date(workout.created_at);
+      workoutDate.setHours(0, 0, 0, 0);
+      
+      const diffDays = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === streak) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return [
+      { label: 'Weekly Workouts', value: thisWeekWorkouts.length.toString(), icon: Dumbbell, color: 'text-blue-500' },
+      { label: 'Calories Burned', value: totalCalories.toLocaleString(), icon: Zap, color: 'text-orange-500' },
+      { label: 'Active Minutes', value: totalMinutes.toString(), icon: Timer, color: 'text-green-500' },
+      { label: 'Workout Streak', value: `${streak} days`, icon: TrendingUp, color: 'text-purple-500' }
+    ];
+  }, [workouts]);
 
   const handleJoinChallenge = async (challengeId: string) => {
     try {
@@ -136,6 +148,11 @@ export default function FitnessPage() {
     } catch (error) {
       toast.error('Failed to join challenge');
     }
+  };
+
+  const handleStartWorkout = (workoutTitle: string) => {
+    setSelectedWorkout(workoutTitle);
+    setIsTimerOpen(true);
   };
 
   const renderTabContent = () => {
@@ -204,6 +221,47 @@ export default function FitnessPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Active Challenges Preview */}
+            {challenges.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Active Challenges</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('challenges')}>
+                      View All
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {challenges.slice(0, 3).map((challenge) => {
+                      const isJoined = userChallenges.some(uc => uc.challenge_id === challenge.id);
+                      const daysLeft = Math.ceil((new Date(challenge.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      return (
+                        <div key={challenge.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Trophy className="w-6 h-6 text-yellow-500" />
+                            <div>
+                              <p className="font-medium">{challenge.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {daysLeft > 0 ? `${daysLeft} days left` : 'Ended'} • {challenge.target_value} {challenge.target_unit}
+                              </p>
+                            </div>
+                          </div>
+                          {isJoined && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              Joined
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         );
 
@@ -341,15 +399,15 @@ export default function FitnessPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Quick Workouts</h2>
-              <Button className="flex items-center gap-2">
+              <Button onClick={() => setIsWorkoutModalOpen(true)} className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                Create Workout
+                Add Workout
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {quickWorkouts.map((workout, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
+              {quickWorkouts.map((workout) => (
+                <Card key={workout.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
@@ -378,7 +436,13 @@ export default function FitnessPage() {
                         </div>
                       </div>
 
-                      <Button className="w-full">Start Workout</Button>
+                      <Button 
+                        className="w-full flex items-center gap-2"
+                        onClick={() => handleStartWorkout(workout.title)}
+                      >
+                        <Play className="w-4 h-4" />
+                        Start Workout
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -436,9 +500,12 @@ export default function FitnessPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-20 md:pb-6">
+      {/* Custom Navigation */}
+      <FitnessNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
       {/* Header */}
-      <div className="post-card">
+      <div className="post-card mt-16 md:mt-0">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
             <Dumbbell className="w-6 h-6 text-white" />
@@ -448,32 +515,12 @@ export default function FitnessPage() {
             <p className="text-muted-foreground">Stay healthy, stay motivated, stay connected!</p>
           </div>
         </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { key: 'overview', label: 'Overview', icon: TrendingUp },
-            { key: 'challenges', label: 'Challenges', icon: Trophy },
-            { key: 'buddies', label: 'Workout Buddies', icon: Users },
-            { key: 'workouts', label: 'Quick Workouts', icon: Dumbbell },
-            { key: 'schedule', label: 'Gym Schedule', icon: Calendar }
-          ].map((tab) => (
-            <Button
-              key={tab.key}
-              variant={activeTab === tab.key ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveTab(tab.key as any)}
-              className="flex items-center gap-2"
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       {/* Tab Content */}
-      {renderTabContent()}
+      <div className="container mx-auto px-4 py-6">
+        {renderTabContent()}
+      </div>
 
       {/* Modals */}
       <WorkoutLogModal 
@@ -483,6 +530,11 @@ export default function FitnessPage() {
       <CreateChallengeModal 
         isOpen={isChallengeModalOpen}
         onClose={() => setIsChallengeModalOpen(false)}
+      />
+      <WorkoutTimer
+        isOpen={isTimerOpen}
+        onClose={() => setIsTimerOpen(false)}
+        workoutName={selectedWorkout}
       />
     </div>
   );
