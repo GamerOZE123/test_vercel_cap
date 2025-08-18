@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,8 @@ import {
   Zap,
   Award,
   User,
-  Play
+  Play,
+  Eye
 } from 'lucide-react';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useFitnessChallenges } from '@/hooks/useFitnessChallenges';
@@ -24,6 +26,7 @@ import WorkoutLogModal from '@/components/fitness/WorkoutLogModal';
 import CreateChallengeModal from '@/components/fitness/CreateChallengeModal';
 import WorkoutTimer from '@/components/fitness/WorkoutTimer';
 import FitnessNavigation from '@/components/fitness/FitnessNavigation';
+import ChallengeDetailModal from '@/components/fitness/ChallengeDetailModal';
 import { toast } from 'sonner';
 
 type TabType = 'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule';
@@ -58,11 +61,11 @@ const workoutBuddies = [
   }
 ];
 
-const quickWorkouts = [
+const predefinedWorkouts = [
   {
     id: 1,
     title: '15-Min HIIT Blast',
-    duration: '15 min',
+    duration: 15,
     difficulty: 'Intermediate',
     equipment: 'None',
     calories: '150-200'
@@ -70,7 +73,7 @@ const quickWorkouts = [
   {
     id: 2,
     title: 'Dorm Room Strength',
-    duration: '20 min',
+    duration: 20,
     difficulty: 'Beginner',
     equipment: 'Bodyweight',
     calories: '100-150'
@@ -78,24 +81,34 @@ const quickWorkouts = [
   {
     id: 3,
     title: 'Study Break Stretch',
-    duration: '10 min',
+    duration: 10,
     difficulty: 'Easy',
     equipment: 'None',
     calories: '30-50'
+  },
+  {
+    id: 4,
+    title: 'Core Power Session',
+    duration: 12,
+    difficulty: 'Intermediate',
+    equipment: 'Mat',
+    calories: '80-120'
   }
 ];
 
-const gymSchedule = [
-  { time: '6:00 AM', activity: 'Morning Cardio', instructor: 'Coach Johnson', spots: 12 },
-  { time: '12:00 PM', activity: 'Lunch Break Yoga', instructor: 'Lisa Park', spots: 8 },
-  { time: '5:00 PM', activity: 'Strength Training', instructor: 'Mike Torres', spots: 15 },
-  { time: '7:00 PM', activity: 'Zumba Dance', instructor: 'Maria Santos', spots: 5 }
+const dailyWorkouts = [
+  { time: '6:00 AM', workout: 'Morning Cardio', type: 'Cardio', duration: '30 min' },
+  { time: '12:00 PM', workout: 'Lunch Break Yoga', type: 'Flexibility', duration: '20 min' },
+  { time: '5:00 PM', workout: 'Strength Training', type: 'Strength', duration: '45 min' },
+  { time: '7:00 PM', workout: 'Evening Run', type: 'Cardio', duration: '25 min' }
 ];
 
 export default function FitnessPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [isChallengeDetailOpen, setIsChallengeDetailOpen] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string>('');
   
@@ -150,15 +163,25 @@ export default function FitnessPage() {
     try {
       await joinChallenge(challengeId);
       toast.success('Successfully joined the challenge!');
+      setIsChallengeDetailOpen(false);
     } catch (error) {
       toast.error('Failed to join challenge');
     }
   };
 
-  const handleStartWorkout = (workoutTitle: string) => {
+  const handleStartWorkout = (workoutTitle: string, duration?: number) => {
     setSelectedWorkout(workoutTitle);
     setIsTimerOpen(true);
   };
+
+  const handleViewChallenge = (challenge: any) => {
+    setSelectedChallenge(challenge);
+    setIsChallengeDetailOpen(true);
+  };
+
+  const joinedChallenges = challenges.filter(challenge => 
+    userChallenges.some(uc => uc.challenge_id === challenge.id)
+  );
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -178,17 +201,46 @@ export default function FitnessPage() {
               ))}
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Action */}
             <div className="flex gap-4">
               <Button onClick={() => setIsWorkoutModalOpen(true)} className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Log Workout
               </Button>
-              <Button variant="outline" onClick={() => setIsChallengeModalOpen(true)} className="flex items-center gap-2">
-                <Trophy className="w-4 h-4" />
-                Create Challenge
-              </Button>
             </div>
+
+            {/* Joined Challenges */}
+            {joinedChallenges.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>My Challenges</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {joinedChallenges.map((challenge) => {
+                      const daysLeft = Math.ceil((new Date(challenge.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      return (
+                        <div key={challenge.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Trophy className="w-6 h-6 text-yellow-500" />
+                            <div>
+                              <p className="font-medium">{challenge.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {daysLeft > 0 ? `${daysLeft} days left` : 'Ended'} • {challenge.target_value} {challenge.target_unit}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            Joined
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recent Workouts */}
             <Card>
@@ -226,47 +278,6 @@ export default function FitnessPage() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Active Challenges Preview */}
-            {challenges.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Active Challenges</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('challenges')}>
-                      View All
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {challenges.slice(0, 3).map((challenge) => {
-                      const isJoined = userChallenges.some(uc => uc.challenge_id === challenge.id);
-                      const daysLeft = Math.ceil((new Date(challenge.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                      
-                      return (
-                        <div key={challenge.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Trophy className="w-6 h-6 text-yellow-500" />
-                            <div>
-                              <p className="font-medium">{challenge.title}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {daysLeft > 0 ? `${daysLeft} days left` : 'Ended'} • {challenge.target_value} {challenge.target_unit}
-                              </p>
-                            </div>
-                          </div>
-                          {isJoined && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                              Joined
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         );
 
@@ -318,8 +329,11 @@ export default function FitnessPage() {
                             <span>{challenge.target_value} {challenge.target_unit}</span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span>Type</span>
-                            <span className="capitalize">{challenge.challenge_type}</span>
+                            <span>Participants</span>
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {Math.floor(Math.random() * 50) + 1} joined
+                            </span>
                           </div>
                         </div>
 
@@ -329,13 +343,25 @@ export default function FitnessPage() {
                           </div>
                         )}
 
-                        <Button 
-                          className="w-full" 
-                          disabled={isJoined || daysLeft <= 0}
-                          onClick={() => handleJoinChallenge(challenge.id)}
-                        >
-                          {isJoined ? 'Already Joined' : daysLeft <= 0 ? 'Challenge Ended' : 'Join Challenge'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 flex items-center gap-1"
+                            onClick={() => handleViewChallenge(challenge)}
+                          >
+                            <Eye className="w-3 h-3" />
+                            View
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="flex-1" 
+                            disabled={isJoined || daysLeft <= 0}
+                            onClick={() => handleJoinChallenge(challenge.id)}
+                          >
+                            {isJoined ? 'Joined' : daysLeft <= 0 ? 'Ended' : 'Join'}
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -411,7 +437,7 @@ export default function FitnessPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {quickWorkouts.map((workout) => (
+              {predefinedWorkouts.map((workout) => (
                 <Card key={workout.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="space-y-4">
@@ -425,7 +451,7 @@ export default function FitnessPage() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span>{workout.duration}</span>
+                          <span>{workout.duration} min</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Target className="w-4 h-4 text-muted-foreground" />
@@ -443,7 +469,7 @@ export default function FitnessPage() {
 
                       <Button 
                         className="w-full flex items-center gap-2"
-                        onClick={() => handleStartWorkout(workout.title)}
+                        onClick={() => handleStartWorkout(workout.title, workout.duration)}
                       >
                         <Play className="w-4 h-4" />
                         Start Workout
@@ -460,37 +486,39 @@ export default function FitnessPage() {
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Gym Schedule</h2>
-              <Button className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Book Session
-              </Button>
+              <h2 className="text-2xl font-bold">Today's Workouts</h2>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Today's Classes</CardTitle>
+                <CardTitle>Recommended Daily Schedule</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {gymSchedule.map((session, index) => (
+                  {dailyWorkouts.map((session, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-surface rounded-lg hover:bg-surface/80 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="text-center">
                           <p className="font-semibold text-foreground">{session.time}</p>
                         </div>
                         <div>
-                          <h3 className="font-medium text-foreground">{session.activity}</h3>
+                          <h3 className="font-medium text-foreground">{session.workout}</h3>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <User className="w-4 h-4" />
-                            <span>{session.instructor}</span>
+                            <Timer className="w-4 h-4" />
+                            <span>{session.duration}</span>
+                            <span>•</span>
+                            <span>{session.type}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">{session.spots} spots left</p>
-                        <Button size="sm" variant="outline">Book</Button>
-                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleStartWorkout(session.workout)}
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        Start
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -509,21 +537,8 @@ export default function FitnessPage() {
       {/* Custom Navigation */}
       <FitnessNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {/* Header */}
-      <div className="post-card mt-16 md:mt-0">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
-            <Dumbbell className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Fitness & Wellness</h1>
-            <p className="text-muted-foreground">Stay healthy, stay motivated, stay connected!</p>
-          </div>
-        </div>
-      </div>
-
       {/* Tab Content */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 mt-16 md:mt-0">
         {renderTabContent()}
       </div>
 
@@ -535,6 +550,13 @@ export default function FitnessPage() {
       <CreateChallengeModal 
         isOpen={isChallengeModalOpen}
         onClose={() => setIsChallengeModalOpen(false)}
+      />
+      <ChallengeDetailModal
+        isOpen={isChallengeDetailOpen}
+        onClose={() => setIsChallengeDetailOpen(false)}
+        challenge={selectedChallenge}
+        isJoined={selectedChallenge ? userChallenges.some(uc => uc.challenge_id === selectedChallenge.id) : false}
+        onJoin={handleJoinChallenge}
       />
       <WorkoutTimer
         isOpen={isTimerOpen}
