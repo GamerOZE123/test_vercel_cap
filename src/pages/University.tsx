@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +11,8 @@ import {
   ShoppingBag, 
   Gavel,
   PlusCircle,
-  Target
+  Target,
+  Dumbbell
 } from 'lucide-react';
 
 const universityOptions = [
@@ -41,6 +41,15 @@ const universityOptions = [
     icon: Users,
     path: '/clubs',
     color: 'bg-purple-500',
+    allowedFor: ['student']
+  },
+  {
+    id: 'fitness',
+    title: 'Fitness & Wellness',
+    description: 'Track workouts, join challenges, and find workout partners',
+    icon: Dumbbell,
+    path: '/fitness',
+    color: 'bg-emerald-500',
     allowedFor: ['student']
   },
   {
