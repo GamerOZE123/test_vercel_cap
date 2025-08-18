@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, Dumbbell } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarIcon, Clock, Dumbbell } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Workout {
   id: string;
@@ -22,12 +26,13 @@ interface AddToScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   availableWorkouts: Workout[];
-  onAdd: (selectedWorkoutIds: string[], scheduleTime: string) => void;
+  onAdd: (selectedWorkoutIds: string[], scheduleTime: string, scheduleDate?: string) => void;
 }
 
 export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts, onAdd }: AddToScheduleModalProps) {
   const [selectedWorkouts, setSelectedWorkouts] = useState<string[]>([]);
   const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleDate, setScheduleDate] = useState<Date>();
 
   const handleWorkoutToggle = (workoutId: string) => {
     setSelectedWorkouts(prev => 
@@ -49,10 +54,12 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
     }
 
     try {
-      await onAdd(selectedWorkouts, scheduleTime);
+      const dateString = scheduleDate ? format(scheduleDate, 'yyyy-MM-dd') : undefined;
+      await onAdd(selectedWorkouts, scheduleTime, dateString);
       toast.success('Workouts added to schedule!');
       setSelectedWorkouts([]);
       setScheduleTime('');
+      setScheduleDate(undefined);
       onClose();
     } catch (error) {
       toast.error('Failed to add workouts to schedule');
@@ -67,6 +74,35 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>Schedule Date (optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !scheduleDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {scheduleDate ? format(scheduleDate, "PPP") : "Today (default)"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={scheduleDate}
+                  onSelect={setScheduleDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave empty to schedule for today
+            </p>
+          </div>
+
           <div>
             <Label htmlFor="time">Schedule Time *</Label>
             <Input
