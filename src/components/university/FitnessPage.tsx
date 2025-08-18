@@ -19,8 +19,10 @@ import { useScheduledWorkouts } from '@/hooks/useScheduledWorkouts';
 import { useFitnessChallenges } from '@/hooks/useFitnessChallenges';
 import { useWorkoutSessions } from '@/hooks/useWorkoutSessions';
 
+type TabType = 'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule';
+
 export default function FitnessPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [isCreateChallengeOpen, setIsCreateChallengeOpen] = useState(false);
@@ -126,7 +128,7 @@ export default function FitnessPage() {
           <p className="text-muted-foreground">Track your workouts, join challenges, and stay motivated!</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
           <TabsList className="grid w-full grid-cols-5 md:hidden mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
