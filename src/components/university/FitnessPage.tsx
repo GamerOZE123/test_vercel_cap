@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +25,8 @@ import CreateChallengeModal from '@/components/fitness/CreateChallengeModal';
 import WorkoutTimer from '@/components/fitness/WorkoutTimer';
 import FitnessNavigation from '@/components/fitness/FitnessNavigation';
 import { toast } from 'sonner';
+
+type TabType = 'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule';
 
 const workoutBuddies = [
   {
@@ -92,7 +93,7 @@ const gymSchedule = [
 ];
 
 export default function FitnessPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule'>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -140,6 +141,10 @@ export default function FitnessPage() {
       { label: 'Workout Streak', value: `${streak} days`, icon: TrendingUp, color: 'text-purple-500' }
     ];
   }, [workouts]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+  };
 
   const handleJoinChallenge = async (challengeId: string) => {
     try {
@@ -502,7 +507,7 @@ export default function FitnessPage() {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-6">
       {/* Custom Navigation */}
-      <FitnessNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <FitnessNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Header */}
       <div className="post-card mt-16 md:mt-0">

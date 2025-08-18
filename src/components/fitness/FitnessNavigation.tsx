@@ -4,17 +4,19 @@ import { ArrowLeft, TrendingUp, Trophy, Users, Dumbbell, Calendar } from 'lucide
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
+type TabType = 'overview' | 'challenges' | 'buddies' | 'workouts' | 'schedule';
+
 interface FitnessNavigationProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
 }
 
 const fitnessNavigation = [
-  { key: 'overview', label: 'Overview', icon: TrendingUp },
-  { key: 'challenges', label: 'Challenges', icon: Trophy },
-  { key: 'buddies', label: 'Workout Buddies', icon: Users },
-  { key: 'workouts', label: 'Quick Workouts', icon: Dumbbell },
-  { key: 'schedule', label: 'Gym Schedule', icon: Calendar }
+  { key: 'overview' as const, label: 'Overview', icon: TrendingUp },
+  { key: 'challenges' as const, label: 'Challenges', icon: Trophy },
+  { key: 'buddies' as const, label: 'Workout Buddies', icon: Users },
+  { key: 'workouts' as const, label: 'Quick Workouts', icon: Dumbbell },
+  { key: 'schedule' as const, label: 'Gym Schedule', icon: Calendar }
 ];
 
 export default function FitnessNavigation({ activeTab, onTabChange }: FitnessNavigationProps) {
