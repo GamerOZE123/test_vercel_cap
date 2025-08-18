@@ -15,6 +15,21 @@ interface AddQuickWorkoutModalProps {
 
 const difficultyLevels = ['Easy', 'Beginner', 'Intermediate', 'Advanced'];
 const equipmentTypes = ['None', 'Bodyweight', 'Mat', 'Dumbbells', 'Resistance Bands', 'Full Gym'];
+const workoutTypes = [
+  'Running',
+  'Walking', 
+  'Cycling',
+  'Swimming',
+  'HIIT',
+  'Strength Training',
+  'Yoga',
+  'Pilates',
+  'Cardio',
+  'Stretching',
+  'Dance',
+  'Boxing',
+  'Custom'
+];
 
 export default function AddQuickWorkoutModal({ isOpen, onClose, onAdd }: AddQuickWorkoutModalProps) {
   const [formData, setFormData] = useState({
@@ -22,35 +37,41 @@ export default function AddQuickWorkoutModal({ isOpen, onClose, onAdd }: AddQuic
     duration: '',
     difficulty: '',
     equipment: '',
-    calories: ''
+    calories: '',
+    workout_type: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.duration || !formData.difficulty || !formData.equipment) {
+    if (!formData.title || !formData.duration || !formData.difficulty || !formData.equipment || !formData.workout_type) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     const newWorkout = {
-      id: Date.now(),
       title: formData.title,
       duration: parseInt(formData.duration),
       difficulty: formData.difficulty,
       equipment: formData.equipment,
-      calories: formData.calories || `${Math.round(parseInt(formData.duration) * 5)}-${Math.round(parseInt(formData.duration) * 8)}`
+      calories: formData.calories || `${Math.round(parseInt(formData.duration) * 5)}-${Math.round(parseInt(formData.duration) * 8)}`,
+      workout_type: formData.workout_type
     };
 
-    onAdd(newWorkout);
-    toast.success('Workout added successfully!');
-    setFormData({
-      title: '',
-      duration: '',
-      difficulty: '',
-      equipment: '',
-      calories: ''
-    });
-    onClose();
+    try {
+      await onAdd(newWorkout);
+      toast.success('Workout added successfully!');
+      setFormData({
+        title: '',
+        duration: '',
+        difficulty: '',
+        equipment: '',
+        calories: '',
+        workout_type: ''
+      });
+      onClose();
+    } catch (error) {
+      toast.error('Failed to add workout');
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -61,7 +82,7 @@ export default function AddQuickWorkoutModal({ isOpen, onClose, onAdd }: AddQuic
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Quick Workout</DialogTitle>
+          <DialogTitle>Add New Workout</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,9 +92,25 @@ export default function AddQuickWorkoutModal({ isOpen, onClose, onAdd }: AddQuic
               id="title"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="e.g., Morning HIIT"
+              placeholder="e.g., Morning Run"
               required
             />
+          </div>
+
+          <div>
+            <Label htmlFor="workout_type">Workout Type *</Label>
+            <Select value={formData.workout_type} onValueChange={(value) => handleChange('workout_type', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select workout type" />
+              </SelectTrigger>
+              <SelectContent>
+                {workoutTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -83,7 +120,7 @@ export default function AddQuickWorkoutModal({ isOpen, onClose, onAdd }: AddQuic
               type="number"
               value={formData.duration}
               onChange={(e) => handleChange('duration', e.target.value)}
-              placeholder="15"
+              placeholder="30"
               min="1"
               max="180"
               required

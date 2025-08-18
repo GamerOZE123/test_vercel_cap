@@ -3,18 +3,19 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface WorkoutSession {
+interface Workout {
   id: string;
-  workout_name: string;
-  duration_minutes: number;
-  calories_burned?: number;
-  workout_type?: string;
-  notes?: string;
+  title: string;
+  duration: number;
+  difficulty: string;
+  equipment: string;
+  calories?: string;
+  workout_type: string;
   created_at: string;
 }
 
 export const useWorkouts = () => {
-  const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -24,10 +25,9 @@ export const useWorkouts = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('workout_sessions')
+        .from('workouts')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       setWorkouts(data || []);
@@ -38,16 +38,13 @@ export const useWorkouts = () => {
     }
   };
 
-  const addWorkout = async (workoutData: Omit<WorkoutSession, 'id' | 'created_at'>) => {
+  const addWorkout = async (workoutData: Omit<Workout, 'id' | 'created_at'>) => {
     if (!user) throw new Error('User not authenticated');
     
     try {
       const { data, error } = await supabase
-        .from('workout_sessions')
-        .insert([{
-          ...workoutData,
-          user_id: user.id
-        }])
+        .from('workouts')
+        .insert([workoutData])
         .select()
         .single();
         
@@ -60,6 +57,23 @@ export const useWorkouts = () => {
     }
   };
 
+  const deleteWorkout = async (workoutId: string) => {
+    if (!user) throw new Error('User not authenticated');
+    
+    try {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId);
+        
+      if (error) throw error;
+      setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchWorkouts();
   }, [user]);
@@ -68,6 +82,7 @@ export const useWorkouts = () => {
     workouts,
     loading,
     addWorkout,
+    deleteWorkout,
     fetchWorkouts
   };
 };

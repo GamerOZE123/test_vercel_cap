@@ -17,6 +17,7 @@ interface FitnessChallenge {
   prize_description?: string;
   creator_id: string;
   created_at: string;
+  participant_count?: number;
 }
 
 interface ChallengeParticipant {
@@ -43,7 +44,21 @@ export const useFitnessChallenges = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setChallenges(data || []);
+      
+      // Get participant counts for each challenge
+      const challengesWithCounts = await Promise.all(
+        (data || []).map(async (challenge) => {
+          const { data: countData } = await supabase
+            .rpc('get_challenge_participant_count', { challenge_uuid: challenge.id });
+          
+          return {
+            ...challenge,
+            participant_count: countData || 0
+          };
+        })
+      );
+      
+      setChallenges(challengesWithCounts);
     } catch (error) {
       console.error('Error fetching challenges:', error);
     } finally {
@@ -67,7 +82,7 @@ export const useFitnessChallenges = () => {
     }
   };
 
-  const createChallenge = async (challengeData: Omit<FitnessChallenge, 'id' | 'creator_id' | 'created_at'>) => {
+  const createChallenge = async (challengeData: Omit<FitnessChallenge, 'id' | 'creator_id' | 'created_at' | 'participant_count'>) => {
     if (!user) throw new Error('User not authenticated');
     
     try {
@@ -81,7 +96,7 @@ export const useFitnessChallenges = () => {
         .single();
         
       if (error) throw error;
-      setChallenges(prev => [data, ...prev]);
+      setChallenges(prev => [{ ...data, participant_count: 0 }, ...prev]);
       return data;
     } catch (error) {
       console.error('Error creating challenge:', error);
@@ -104,6 +119,14 @@ export const useFitnessChallenges = () => {
         
       if (error) throw error;
       setUserChallenges(prev => [...prev, data]);
+      
+      // Update the challenge participant count
+      setChallenges(prev => prev.map(challenge => 
+        challenge.id === challengeId 
+          ? { ...challenge, participant_count: (challenge.participant_count || 0) + 1 }
+          : challenge
+      ));
+      
       return data;
     } catch (error) {
       console.error('Error joining challenge:', error);

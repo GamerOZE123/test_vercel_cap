@@ -8,18 +8,28 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Clock, Dumbbell } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface Workout {
+  id: string;
+  title: string;
+  duration: number;
+  difficulty: string;
+  equipment: string;
+  calories?: string;
+  workout_type: string;
+}
+
 interface AddToScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  availableWorkouts: any[];
-  onAdd: (selectedWorkouts: any[]) => void;
+  availableWorkouts: Workout[];
+  onAdd: (selectedWorkoutIds: string[], scheduleTime: string) => void;
 }
 
 export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts, onAdd }: AddToScheduleModalProps) {
-  const [selectedWorkouts, setSelectedWorkouts] = useState<number[]>([]);
+  const [selectedWorkouts, setSelectedWorkouts] = useState<string[]>([]);
   const [scheduleTime, setScheduleTime] = useState('');
 
-  const handleWorkoutToggle = (workoutId: number) => {
+  const handleWorkoutToggle = (workoutId: string) => {
     setSelectedWorkouts(prev => 
       prev.includes(workoutId)
         ? prev.filter(id => id !== workoutId)
@@ -27,7 +37,7 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedWorkouts.length === 0) {
       toast.error('Please select at least one workout');
@@ -38,19 +48,15 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
       return;
     }
 
-    const workoutsToAdd = availableWorkouts
-      .filter(workout => selectedWorkouts.includes(workout.id))
-      .map(workout => ({
-        ...workout,
-        time: scheduleTime,
-        type: workout.difficulty
-      }));
-
-    onAdd(workoutsToAdd);
-    toast.success('Workouts added to schedule!');
-    setSelectedWorkouts([]);
-    setScheduleTime('');
-    onClose();
+    try {
+      await onAdd(selectedWorkouts, scheduleTime);
+      toast.success('Workouts added to schedule!');
+      setSelectedWorkouts([]);
+      setScheduleTime('');
+      onClose();
+    } catch (error) {
+      toast.error('Failed to add workouts to schedule');
+    }
   };
 
   return (
@@ -76,7 +82,7 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
             <Label>Select Workouts *</Label>
             <div className="space-y-3 mt-2">
               {availableWorkouts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No workouts available. Add some in the Quick Workouts section first.</p>
+                <p className="text-sm text-muted-foreground">No workouts available. Add some workouts first.</p>
               ) : (
                 availableWorkouts.map((workout) => (
                   <div key={workout.id} className="flex items-center space-x-3 p-3 border rounded-lg">
@@ -95,6 +101,7 @@ export default function AddToScheduleModal({ isOpen, onClose, availableWorkouts,
                           <Clock className="w-3 h-3" />
                           <span>{workout.duration} min</span>
                         </div>
+                        <span>{workout.workout_type}</span>
                         <span>{workout.difficulty}</span>
                         <span>{workout.equipment}</span>
                       </div>

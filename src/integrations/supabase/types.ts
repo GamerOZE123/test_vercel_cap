@@ -998,6 +998,41 @@ export type Database = {
           },
         ]
       }
+      scheduled_workouts: {
+        Row: {
+          created_at: string
+          id: string
+          scheduled_date: string
+          scheduled_time: string
+          user_id: string
+          workout_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scheduled_date?: string
+          scheduled_time: string
+          user_id: string
+          workout_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scheduled_date?: string
+          scheduled_time?: string
+          user_id?: string
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_workouts_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           certificates: string[] | null
@@ -1093,6 +1128,42 @@ export type Database = {
         }
         Relationships: []
       }
+      workouts: {
+        Row: {
+          calories: string | null
+          created_at: string
+          difficulty: string
+          duration: number
+          equipment: string
+          id: string
+          title: string
+          user_id: string
+          workout_type: string | null
+        }
+        Insert: {
+          calories?: string | null
+          created_at?: string
+          difficulty: string
+          duration: number
+          equipment: string
+          id?: string
+          title: string
+          user_id: string
+          workout_type?: string | null
+        }
+        Update: {
+          calories?: string | null
+          created_at?: string
+          difficulty?: string
+          duration?: number
+          equipment?: string
+          id?: string
+          title?: string
+          user_id?: string
+          workout_type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1109,6 +1180,10 @@ export type Database = {
           target_user_id: string
         }
         Returns: string
+      }
+      get_challenge_participant_count: {
+        Args: { challenge_uuid: string }
+        Returns: number
       }
       get_or_create_conversation: {
         Args: { user1_id: string; user2_id: string }
