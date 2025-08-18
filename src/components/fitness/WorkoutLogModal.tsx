@@ -26,41 +26,47 @@ const workoutTypes = [
   'Other'
 ];
 
+const difficulties = ['Beginner', 'Intermediate', 'Advanced'];
+const equipmentOptions = ['None', 'Bodyweight', 'Dumbbells', 'Barbell', 'Resistance Bands', 'Gym Equipment'];
+
 export default function WorkoutLogModal({ isOpen, onClose }: WorkoutLogModalProps) {
   const [formData, setFormData] = useState({
-    workout_name: '',
-    duration_minutes: '',
-    calories_burned: '',
+    title: '',
+    duration: '',
+    calories: '',
     workout_type: '',
-    notes: ''
+    difficulty: '',
+    equipment: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addWorkout } = useWorkouts();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.workout_name || !formData.duration_minutes) {
-      toast.error('Please fill in the required fields');
+    if (!formData.title || !formData.duration || !formData.difficulty || !formData.equipment) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
     try {
       await addWorkout({
-        workout_name: formData.workout_name,
-        duration_minutes: parseInt(formData.duration_minutes),
-        calories_burned: formData.calories_burned ? parseInt(formData.calories_burned) : undefined,
-        workout_type: formData.workout_type || undefined,
-        notes: formData.notes || undefined
+        title: formData.title,
+        duration: parseInt(formData.duration),
+        calories: formData.calories || undefined,
+        workout_type: formData.workout_type || 'Other',
+        difficulty: formData.difficulty,
+        equipment: formData.equipment
       });
       
       toast.success('Workout logged successfully!');
       setFormData({
-        workout_name: '',
-        duration_minutes: '',
-        calories_burned: '',
+        title: '',
+        duration: '',
+        calories: '',
         workout_type: '',
-        notes: ''
+        difficulty: '',
+        equipment: ''
       });
       onClose();
     } catch (error) {
@@ -83,11 +89,11 @@ export default function WorkoutLogModal({ isOpen, onClose }: WorkoutLogModalProp
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="workout_name">Workout Name *</Label>
+            <Label htmlFor="title">Workout Name *</Label>
             <Input
-              id="workout_name"
-              value={formData.workout_name}
-              onChange={(e) => handleChange('workout_name', e.target.value)}
+              id="title"
+              value={formData.title}
+              onChange={(e) => handleChange('title', e.target.value)}
               placeholder="e.g., Morning Run"
               required
             />
@@ -110,12 +116,12 @@ export default function WorkoutLogModal({ isOpen, onClose }: WorkoutLogModalProp
           </div>
 
           <div>
-            <Label htmlFor="duration_minutes">Duration (minutes) *</Label>
+            <Label htmlFor="duration">Duration (minutes) *</Label>
             <Input
-              id="duration_minutes"
+              id="duration"
               type="number"
-              value={formData.duration_minutes}
-              onChange={(e) => handleChange('duration_minutes', e.target.value)}
+              value={formData.duration}
+              onChange={(e) => handleChange('duration', e.target.value)}
               placeholder="30"
               min="1"
               required
@@ -123,25 +129,44 @@ export default function WorkoutLogModal({ isOpen, onClose }: WorkoutLogModalProp
           </div>
 
           <div>
-            <Label htmlFor="calories_burned">Calories Burned</Label>
-            <Input
-              id="calories_burned"
-              type="number"
-              value={formData.calories_burned}
-              onChange={(e) => handleChange('calories_burned', e.target.value)}
-              placeholder="250"
-              min="0"
-            />
+            <Label htmlFor="difficulty">Difficulty *</Label>
+            <Select value={formData.difficulty} onValueChange={(value) => handleChange('difficulty', value)} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select difficulty" />
+              </SelectTrigger>
+              <SelectContent>
+                {difficulties.map((difficulty) => (
+                  <SelectItem key={difficulty} value={difficulty}>
+                    {difficulty}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleChange('notes', e.target.value)}
-              placeholder="How did the workout feel?"
-              rows={3}
+            <Label htmlFor="equipment">Equipment *</Label>
+            <Select value={formData.equipment} onValueChange={(value) => handleChange('equipment', value)} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select equipment" />
+              </SelectTrigger>
+              <SelectContent>
+                {equipmentOptions.map((equipment) => (
+                  <SelectItem key={equipment} value={equipment}>
+                    {equipment}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="calories">Calories Burned</Label>
+            <Input
+              id="calories"
+              value={formData.calories}
+              onChange={(e) => handleChange('calories', e.target.value)}
+              placeholder="250"
             />
           </div>
 

@@ -38,13 +38,23 @@ export const useWorkouts = () => {
     }
   };
 
-  const addWorkout = async (workoutData: Omit<Workout, 'id' | 'created_at'>) => {
+  const addWorkout = async (workoutData: {
+    title: string;
+    duration: number;
+    difficulty: string;
+    equipment: string;
+    calories?: string;
+    workout_type: string;
+  }) => {
     if (!user) throw new Error('User not authenticated');
     
     try {
       const { data, error } = await supabase
         .from('workouts')
-        .insert([workoutData])
+        .insert([{
+          ...workoutData,
+          user_id: user.id
+        }])
         .select()
         .single();
         

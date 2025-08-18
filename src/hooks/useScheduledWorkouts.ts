@@ -68,7 +68,8 @@ export const useScheduledWorkouts = () => {
         .insert([{
           workout_id: workoutId,
           scheduled_time: time,
-          scheduled_date: date
+          scheduled_date: date,
+          user_id: user.id
         }])
         .select(`
           *,

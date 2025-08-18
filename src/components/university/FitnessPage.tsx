@@ -66,6 +66,16 @@ export default function FitnessPage() {
     setIsChallengeDetailOpen(true);
   };
 
+  const handleCreateChallenge = async (challengeData: any) => {
+    try {
+      await createChallenge(challengeData);
+      toast.success('Challenge created successfully!');
+      setIsCreateChallengeOpen(false);
+    } catch (error) {
+      toast.error('Failed to create challenge');
+    }
+  };
+
   const joinedChallenges = challenges.filter(challenge => 
     userChallenges.some(uc => uc.challenge_id === challenge.id)
   );
@@ -403,19 +413,22 @@ export default function FitnessPage() {
       <WorkoutTimer
         isOpen={isTimerOpen}
         onClose={() => setIsTimerOpen(false)}
-        workout={selectedWorkout}
+        duration={selectedWorkout?.duration || 30}
+        workoutName={selectedWorkout?.title || 'Workout'}
       />
 
       <CreateChallengeModal
         isOpen={isCreateChallengeOpen}
         onClose={() => setIsCreateChallengeOpen(false)}
-        onCreate={createChallenge}
+        onSubmit={handleCreateChallenge}
       />
 
       <ChallengeDetailModal
         isOpen={isChallengeDetailOpen}
         onClose={() => setIsChallengeDetailOpen(false)}
         challenge={selectedChallenge}
+        isJoined={selectedChallenge ? userChallenges.some(uc => uc.challenge_id === selectedChallenge.id) : false}
+        onJoin={() => selectedChallenge && handleJoinChallenge(selectedChallenge.id)}
       />
 
       <WorkoutLogModal
