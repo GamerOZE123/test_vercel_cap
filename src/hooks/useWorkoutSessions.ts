@@ -86,10 +86,6 @@ export const useWorkoutSessions = () => {
     }
   };
 
-  const addSession = async (sessionData: CreateWorkoutSessionData) => {
-    return await completeWorkout(sessionData);
-  };
-
   const markWorkoutAsCompleted = (workoutId: string) => {
     setCompletedWorkouts(prev => new Set([...prev, workoutId]));
   };
@@ -104,10 +100,8 @@ export const useWorkoutSessions = () => {
 
   return {
     workoutSessions,
-    sessions: workoutSessions, // Alias for backward compatibility
     loading,
     completeWorkout,
-    addSession,
     deleteWorkoutSession,
     fetchWorkoutSessions,
     markWorkoutAsCompleted,
