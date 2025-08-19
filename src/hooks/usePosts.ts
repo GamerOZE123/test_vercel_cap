@@ -29,11 +29,11 @@ export const usePosts = () => {
       
       if (error) throw error;
       
-      // Transform the data to add default user info since we don't have a users table join
+      // Transform the data to add default user info since we don't have user data in the posts table
       const transformedPosts = (data || []).map(post => ({
         ...post,
-        user_name: post.user_name || 'Anonymous User',
-        user_username: post.user_username || 'anonymous'
+        user_name: 'Anonymous User',
+        user_username: 'anonymous'
       }));
       
       setPosts(transformedPosts);
