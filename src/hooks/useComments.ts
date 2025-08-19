@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +9,7 @@ interface Comment {
   content: string;
   created_at: string;
   user_id: string;
+  post_id: string;
   profiles: {
     full_name: string;
     username: string;
@@ -19,12 +21,14 @@ export const useComments = (postId: string) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchComments = async () => {
+    if (!postId) return;
+
+    setLoading(true);
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -32,6 +36,7 @@ export const useComments = (postId: string) => {
           content,
           created_at,
           user_id,
+          post_id,
           profiles (
             full_name,
             username,
@@ -41,105 +46,83 @@ export const useComments = (postId: string) => {
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching comments:', error);
-        setComments([]);
-        setCommentsCount(0);
-        return;
-      }
-
+      if (error) throw error;
+      
       console.log('Fetched comments:', data);
       
-      // Transform the data to match our Comment interface
-      const transformedComments: Comment[] = (data || []).map((comment: any) => ({
-        id: comment.id,
-        content: comment.content,
-        created_at: comment.created_at,
-        user_id: comment.user_id,
-        profiles: Array.isArray(comment.profiles) && comment.profiles.length > 0 
-          ? comment.profiles[0]
-          : comment.profiles || null
+      // Transform the data to handle profiles array properly
+      const transformedComments: Comment[] = (data || []).map(comment => ({
+        ...comment,
+        profiles: Array.isArray(comment.profiles) ? comment.profiles[0] || null : comment.profiles
       }));
       
       setComments(transformedComments);
       setCommentsCount(transformedComments.length);
+
+      // Update post comments count
+      if (transformedComments.length >= 0) {
+        const { error: updateError } = await supabase
+          .from('posts')
+          .update({ comments_count: transformedComments.length })
+          .eq('id', postId);
+
+        if (updateError) console.error('Error updating comments count:', updateError);
+      }
     } catch (error) {
-      console.error('Error in fetchComments:', error);
-      setComments([]);
-      setCommentsCount(0);
+      console.error('Error fetching comments:', error);
+      toast.error('Failed to load comments');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (postId) {
-      fetchComments();
-    }
-  }, [postId]);
-
-  const addComment = async (content: string): Promise<boolean> => {
-    if (!user || !content.trim()) {
-      toast.error('Please enter a comment');
-      return false;
-    }
+  const addComment = async (content: string) => {
+    if (!user || !postId || !content.trim() || submitting) return false;
 
     setSubmitting(true);
     try {
+      console.log('Adding comment:', { content, postId, userId: user.id });
+      
       const { data, error } = await supabase
         .from('comments')
         .insert({
+          content: content.trim(),
           post_id: postId,
-          user_id: user.id,
-          content: content.trim()
+          user_id: user.id
         })
         .select(`
           id,
           content,
           created_at,
           user_id,
+          post_id,
           profiles (
             full_name,
             username,
             avatar_url
           )
-        `);
+        `)
+        .single();
 
       if (error) {
         console.error('Error adding comment:', error);
-        toast.error('Failed to add comment');
-        return false;
-      }
-
-      console.log('Comment added:', data);
-      if (data && data[0]) {
-        // Properly extract the profile data as a single object
-        let profileData: { full_name: string; username: string; avatar_url?: string } | null = null;
-        
-        if (data[0].profiles) {
-          if (Array.isArray(data[0].profiles) && data[0].profiles.length > 0) {
-            profileData = data[0].profiles[0];
-          } else if (!Array.isArray(data[0].profiles)) {
-            profileData = data[0].profiles;
-          }
-        }
-          
-        const newComment: Comment = {
-          id: data[0].id,
-          content: data[0].content,
-          created_at: data[0].created_at,
-          user_id: data[0].user_id,
-          profiles: profileData
-        };
-        
-        setComments(prev => [...prev, newComment]);
-        setCommentsCount(prev => prev + 1);
+        throw error;
       }
       
-      toast.success('Comment added successfully');
+      console.log('Comment added successfully:', data);
+      
+      // Transform the data to handle profiles array properly
+      const transformedComment: Comment = {
+        ...data,
+        profiles: Array.isArray(data.profiles) ? data.profiles[0] || null : data.profiles
+      };
+      
+      setComments(prev => [...prev, transformedComment]);
+      setCommentsCount(prev => prev + 1);
+      toast.success('Comment added!');
       return true;
     } catch (error) {
-      console.error('Error in addComment:', error);
+      console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
       return false;
     } finally {
@@ -147,12 +130,10 @@ export const useComments = (postId: string) => {
     }
   };
 
-  const deleteComment = async (commentId: string): Promise<boolean> => {
-    if (!user) {
-      toast.error('You must be logged in to delete comments');
-      return false;
-    }
+  const deleteComment = async (commentId: string) => {
+    if (!user || submitting) return false;
 
+    setSubmitting(true);
     try {
       const { error } = await supabase
         .from('comments')
@@ -160,22 +141,24 @@ export const useComments = (postId: string) => {
         .eq('id', commentId)
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error deleting comment:', error);
-        toast.error('Failed to delete comment');
-        return false;
-      }
-
-      setComments(prev => prev.filter(comment => comment.id !== commentId));
-      setCommentsCount(prev => prev - 1);
-      toast.success('Comment deleted successfully');
+      if (error) throw error;
+      
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      setCommentsCount(prev => Math.max(0, prev - 1));
+      toast.success('Comment deleted!');
       return true;
     } catch (error) {
-      console.error('Error in deleteComment:', error);
+      console.error('Error deleting comment:', error);
       toast.error('Failed to delete comment');
       return false;
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    fetchComments();
+  }, [postId, user]);
 
   return {
     comments,
@@ -184,6 +167,6 @@ export const useComments = (postId: string) => {
     submitting,
     addComment,
     deleteComment,
-    refetch: fetchComments
+    refreshComments: fetchComments
   };
 };

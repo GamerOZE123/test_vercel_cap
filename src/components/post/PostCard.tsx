@@ -7,7 +7,6 @@ import PostHeader from './PostHeader';
 import PostContent from './PostContent';
 import PostActions from './PostActions';
 import CommentSection from './CommentSection';
-import { useNavigate } from 'react-router-dom';
 
 interface Post {
   id: string;
@@ -36,20 +35,9 @@ export default function PostCard({ post }: PostCardProps) {
     deleteComment, 
     submitting: commentsSubmitting 
   } = useComments(post.id);
-  const navigate = useNavigate();
 
   const handleToggleComments = () => {
     setShowComments(!showComments);
-  };
-
-  const handlePostClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on interactive elements
-    const target = e.target as HTMLElement;
-    const isInteractive = target.closest('button, a, input, textarea');
-    
-    if (!isInteractive) {
-      navigate(`/post/${post.id}`);
-    }
   };
 
   // Create user object for PostHeader
@@ -60,8 +48,8 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <Card className="bg-card border-border cursor-pointer hover:bg-card/80 transition-colors">
-      <div className="p-6" onClick={handlePostClick}>
+    <Card className="bg-card border-border">
+      <div className="p-6">
         <PostHeader
           user={userForHeader}
           timestamp={new Date(post.created_at).toLocaleDateString()}

@@ -1172,7 +1172,6 @@ export type Database = {
       trending_hashtags: {
         Row: {
           hashtag: string | null
-          last_used: string | null
           post_count: number | null
           unique_users: number | null
         }
