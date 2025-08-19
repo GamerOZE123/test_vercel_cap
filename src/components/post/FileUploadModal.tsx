@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Upload, File } from 'lucide-react';
+import { X, Upload, File, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,6 +25,12 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const extractHashtags = (text: string): string[] => {
+    const hashtagRegex = /#[a-zA-Z0-9_]+/g;
+    const matches = text.match(hashtagRegex);
+    return matches ? matches.map(tag => tag.substring(1).toLowerCase()) : [];
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -72,6 +78,9 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         console.log('Public URL:', fileUrl);
       }
 
+      // Extract hashtags from content
+      const hashtags = extractHashtags(content);
+
       // Create post in database
       console.log('Creating post with user ID:', user.id);
       const { data: postData, error: postError } = await supabase
@@ -79,7 +88,8 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         .insert({
           user_id: user.id,
           content: content.trim() || 'Shared a file',
-          image_url: fileUrl
+          image_url: fileUrl,
+          hashtags: hashtags.length > 0 ? hashtags : null
         })
         .select();
 
@@ -111,6 +121,8 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
     }
   };
 
+  const hashtags = extractHashtags(content);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
@@ -120,12 +132,24 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         
         <div className="space-y-4">
           <Textarea
-            placeholder="What's on your mind?"
+            placeholder="What's on your mind? Use #hashtags to categorize your post..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[100px] resize-none"
             disabled={uploading}
           />
+
+          {/* Show detected hashtags */}
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-2 bg-muted/50 rounded-lg">
+              <Hash className="w-4 h-4 text-primary mt-0.5" />
+              {hashtags.map((tag, index) => (
+                <span key={index} className="text-sm bg-primary/20 text-primary px-2 py-1 rounded">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
           
           <div className="space-y-2">
             <label className="text-sm font-medium">Attach File (Optional)</label>
