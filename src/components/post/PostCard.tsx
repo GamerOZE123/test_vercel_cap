@@ -7,6 +7,8 @@ import PostHeader from './PostHeader';
 import PostContent from './PostContent';
 import PostActions from './PostActions';
 import CommentSection from './CommentSection';
+import ClickablePostCard from './ClickablePostCard';
+import { Hash } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -19,6 +21,7 @@ interface Post {
   user_name: string;
   user_username: string;
   user_university?: string;
+  hashtags?: string[];
 }
 
 interface PostCardProps {
@@ -48,39 +51,53 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <Card className="bg-card border-border">
-      <div className="p-6">
-        <PostHeader
-          user={userForHeader}
-          timestamp={new Date(post.created_at).toLocaleDateString()}
-          isOwnPost={false}
-        />
-        
-        <PostContent
-          content={post.content}
-          fileUrl={post.image_url}
-        />
-        
-        <PostActions
-          postId={post.id}
-          postContent={post.content}
-          likesCount={likesCount}
-          commentsCount={commentsCount}
-          isLiked={isLiked}
-          onLike={toggleLike}
-          onComment={handleToggleComments}
-          likesLoading={likesLoading}
-        />
-        
-        {showComments && (
-          <CommentSection
-            comments={comments}
-            onAddComment={addComment}
-            onDeleteComment={deleteComment}
-            submitting={commentsSubmitting}
+    <ClickablePostCard postId={post.id}>
+      <Card className="bg-card border-border">
+        <div className="p-6">
+          <PostHeader
+            user={userForHeader}
+            timestamp={new Date(post.created_at).toLocaleDateString()}
+            isOwnPost={false}
           />
-        )}
-      </div>
-    </Card>
+          
+          <PostContent
+            content={post.content}
+            fileUrl={post.image_url}
+          />
+          
+          {/* Display hashtags */}
+          {post.hashtags && post.hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {post.hashtags.map((tag, index) => (
+                <div key={index} className="flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm">
+                  <Hash className="w-3 h-3" />
+                  <span>{tag}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <PostActions
+            postId={post.id}
+            postContent={post.content}
+            likesCount={likesCount}
+            commentsCount={commentsCount}
+            isLiked={isLiked}
+            onLike={toggleLike}
+            onComment={handleToggleComments}
+            likesLoading={likesLoading}
+          />
+          
+          {showComments && (
+            <CommentSection
+              comments={comments}
+              onAddComment={addComment}
+              onDeleteComment={deleteComment}
+              submitting={commentsSubmitting}
+            />
+          )}
+        </div>
+      </Card>
+    </ClickablePostCard>
   );
 }

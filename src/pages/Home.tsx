@@ -14,6 +14,7 @@ interface PostData {
   likes_count: number;
   comments_count: number;
   created_at: string;
+  hashtags?: string[];
   profiles: {
     full_name?: string;
     username?: string;
@@ -34,6 +35,7 @@ interface TransformedPost {
   user_name: string;
   user_username: string;
   user_university?: string;
+  hashtags?: string[];
 }
 
 export default function Home() {
@@ -105,7 +107,8 @@ export default function Home() {
           user_id: post.user_id,
           user_name: userName,
           user_username: userUsername,
-          user_university: userUniversity
+          user_university: userUniversity,
+          hashtags: post.hashtags || []
         };
       });
       

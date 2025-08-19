@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import PostCard from '@/components/post/PostCard';
 import EditProfileModal from '@/components/profile/EditProfileModal';
+import MessageButton from '@/components/profile/MessageButton';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, UserMinus, Edit } from 'lucide-react';
@@ -31,6 +31,7 @@ interface PostWithProfile {
   likes_count: number;
   comments_count: number;
   user_id: string;
+  hashtags?: string[];
   profiles: {
     username: string;
     full_name: string;
@@ -51,6 +52,7 @@ interface TransformedPost {
   user_name: string;
   user_username: string;
   user_university?: string;
+  hashtags?: string[];
 }
 
 export default function Profile() {
@@ -196,7 +198,8 @@ export default function Profile() {
       user_id: post.user_id,
       user_name: post.profiles.full_name || post.profiles.username || 'Unknown',
       user_username: post.profiles.username || 'user',
-      user_university: post.profiles.university || 'University'
+      user_university: post.profiles.university || 'University',
+      hashtags: post.hashtags
     }));
   };
 
@@ -262,24 +265,27 @@ export default function Profile() {
                     Edit Profile
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleFollow}
-                    variant={isFollowing ? "outline" : "default"}
-                    className="flex items-center gap-2"
-                    disabled={followLoading}
-                  >
-                    {isFollowing ? (
-                      <>
-                        <UserMinus className="w-4 h-4" />
-                        Unfollow
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4" />
-                        Follow
-                      </>
-                    )}
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleFollow}
+                      variant={isFollowing ? "outline" : "default"}
+                      className="flex items-center gap-2"
+                      disabled={followLoading}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserMinus className="w-4 h-4" />
+                          Unfollow
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4" />
+                          Follow
+                        </>
+                      )}
+                    </Button>
+                    <MessageButton userId={profileData.user_id} />
+                  </>
                 )}
               </div>
             </div>
