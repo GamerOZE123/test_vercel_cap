@@ -25,22 +25,55 @@ export const usePosts = () => {
 
   const fetchPosts = async () => {
     try {
-      const { data, error } = await supabase
+      // First get all posts
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            username,
-            avatar_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPosts(data || []);
+      if (postsError) throw postsError;
+
+      if (!postsData || postsData.length === 0) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user IDs from posts
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+
+      // Fetch profiles for all users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user_id to profile for quick lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.user_id, profile);
+      });
+
+      // Transform posts data with profile information
+      const transformedPosts: Post[] = postsData.map((post) => {
+        const profile = profilesMap.get(post.user_id);
+        
+        return {
+          ...post,
+          profiles: {
+            full_name: profile?.full_name || 'Anonymous User',
+            username: profile?.username || 'user',
+            avatar_url: profile?.avatar_url || ''
+          }
+        };
+      });
+
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -48,21 +81,35 @@ export const usePosts = () => {
 
   const getPostById = async (postId: string) => {
     try {
-      const { data, error } = await supabase
+      // Get the specific post
+      const { data: postData, error: postError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            username,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('id', postId)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (postError) throw postError;
+      if (!postData) return null;
+
+      // Get the user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, username, avatar_url')
+        .eq('user_id', postData.user_id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+      }
+
+      return {
+        ...postData,
+        profiles: {
+          full_name: profileData?.full_name || 'Anonymous User',
+          username: profileData?.username || 'user',
+          avatar_url: profileData?.avatar_url || ''
+        }
+      };
     } catch (error) {
       console.error('Error fetching post:', error);
       return null;
