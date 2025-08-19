@@ -1,14 +1,17 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
-import { Search, Filter, User } from 'lucide-react';
+import { Search, Filter, User, Hash, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useUsers } from '@/hooks/useUsers';
+import { useTrendingHashtags } from '@/hooks/useTrendingHashtags';
 import { useNavigate } from 'react-router-dom';
 
 export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
   const { users, loading, searchUsers } = useUsers();
+  const { hashtags, loading: hashtagsLoading } = useTrendingHashtags();
   const navigate = useNavigate();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,7 +38,7 @@ export default function Explore() {
                 placeholder="Search users..."
                 value={searchQuery}
                 onChange={handleSearch}
-                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground"
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <Button variant="outline" size="sm" className="sm:w-auto w-full">
@@ -44,6 +47,38 @@ export default function Explore() {
             </Button>
           </div>
         </div>
+
+        {/* Trending Hashtags */}
+        {!searchQuery && (
+          <div className="post-card">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Trending Hashtags
+            </h3>
+            {hashtagsLoading ? (
+              <div className="text-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-muted-foreground mt-2">Loading hashtags...</p>
+              </div>
+            ) : hashtags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {hashtags.map((hashtag) => (
+                  <Badge
+                    key={hashtag.hashtag}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    <Hash className="w-3 h-3 mr-1" />
+                    {hashtag.hashtag}
+                    <span className="ml-1 text-xs opacity-75">({hashtag.post_count})</span>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No trending hashtags yet</p>
+            )}
+          </div>
+        )}
 
         {/* Search Results */}
         {searchQuery && (
@@ -100,6 +135,7 @@ export default function Explore() {
         {/* Content placeholder when no search */}
         {!searchQuery && (
           <div className="post-card text-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Start searching to discover users and content</p>
           </div>
         )}
