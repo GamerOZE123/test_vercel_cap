@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,9 +32,9 @@ export default function FitnessPage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isMonthlyScheduleOpen, setIsMonthlyScheduleOpen] = useState(false);
 
-  const { workouts, loading: workoutsLoading } = useWorkouts();
+  const { workouts, loading: workoutsLoading, addWorkout } = useWorkouts();
   const { scheduledWorkouts, loading: scheduleLoading, markWorkoutCompleted } = useScheduledWorkouts();
-  const { challenges, loading: challengesLoading } = useFitnessChallenges();
+  const { challenges, loading: challengesLoading, userChallenges, joinChallenge } = useFitnessChallenges();
   const { sessions, addSession } = useWorkoutSessions();
 
   const todaySchedule = scheduledWorkouts.filter(
@@ -41,6 +42,18 @@ export default function FitnessPage() {
   );
 
   const workoutOfTheDay = workouts.length > 0 ? workouts[Math.floor(Math.random() * workouts.length)] : null;
+
+  const isJoined = (challengeId: string) => {
+    return userChallenges.some(uc => uc.challenge_id === challengeId);
+  };
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    try {
+      await joinChallenge(challengeId);
+    } catch (error) {
+      console.error('Error joining challenge:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,7 +132,7 @@ export default function FitnessPage() {
                               <CheckCircle className="h-4 w-4" />
                             </Button>
                             <div>
-                              <p className="font-medium">{workout.workout?.title || 'Custom Workout'}</p>
+                              <p className="font-medium">{workout.workouts?.title || 'Custom Workout'}</p>
                               <p className="text-sm text-muted-foreground">{workout.scheduled_time}</p>
                             </div>
                           </div>
@@ -289,7 +302,7 @@ export default function FitnessPage() {
               </div>
               <Button onClick={() => setIsMonthlyScheduleOpen(true)}>
                 <Calendar className="h-4 w-4 mr-2" />
-                Monthly Schedule
+                View Full Schedule
               </Button>
             </div>
 
@@ -312,7 +325,8 @@ export default function FitnessPage() {
         <WorkoutTimer
           isOpen={isTimerOpen}
           onClose={() => setIsTimerOpen(false)}
-          workout={selectedWorkout}
+          workoutName={selectedWorkout?.title}
+          duration={selectedWorkout?.duration}
         />
 
         <CreateChallengeModal
@@ -324,11 +338,14 @@ export default function FitnessPage() {
           isOpen={isChallengeDetailOpen}
           onClose={() => setIsChallengeDetailOpen(false)}
           challenge={selectedChallenge}
+          isJoined={selectedChallenge ? isJoined(selectedChallenge.id) : false}
+          onJoin={handleJoinChallenge}
         />
 
         <AddQuickWorkoutModal
           isOpen={isQuickWorkoutOpen}
           onClose={() => setIsQuickWorkoutOpen(false)}
+          onAdd={addWorkout}
         />
 
         <WorkoutLogModal
@@ -339,12 +356,15 @@ export default function FitnessPage() {
         <AddToScheduleModal
           isOpen={isScheduleModalOpen}
           onClose={() => setIsScheduleModalOpen(false)}
-          workout={selectedWorkout}
         />
 
         <MonthlyScheduleModal
           isOpen={isMonthlyScheduleOpen}
           onClose={() => setIsMonthlyScheduleOpen(false)}
+          availableWorkouts={workouts}
+          onSchedule={(workoutId: string, date: string, time: string) => {
+            console.log('Schedule workout:', workoutId, date, time);
+          }}
         />
       </div>
     </div>
