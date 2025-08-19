@@ -883,6 +883,7 @@ export type Database = {
           comments_count: number | null
           content: string
           created_at: string | null
+          hashtags: string[] | null
           id: string
           image_url: string | null
           likes_count: number | null
@@ -893,6 +894,7 @@ export type Database = {
           comments_count?: number | null
           content: string
           created_at?: string | null
+          hashtags?: string[] | null
           id?: string
           image_url?: string | null
           likes_count?: number | null
@@ -903,6 +905,7 @@ export type Database = {
           comments_count?: number | null
           content?: string
           created_at?: string | null
+          hashtags?: string[] | null
           id?: string
           image_url?: string | null
           likes_count?: number | null
@@ -1166,7 +1169,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      trending_hashtags: {
+        Row: {
+          hashtag: string | null
+          last_used: string | null
+          post_count: number | null
+          unique_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_notification: {
@@ -1180,6 +1191,10 @@ export type Database = {
           target_user_id: string
         }
         Returns: string
+      }
+      extract_hashtags: {
+        Args: { content: string }
+        Returns: string[]
       }
       get_challenge_participant_count: {
         Args: { challenge_uuid: string }

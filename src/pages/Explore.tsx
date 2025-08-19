@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
-import { Search, Filter, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, User } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { useNavigate } from 'react-router-dom';
+import TrendingHashtags from '@/components/explore/TrendingHashtags';
 
 export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,23 +27,20 @@ export default function Explore() {
         {/* Search Header */}
         <div className="post-card">
           <h2 className="text-2xl font-bold text-foreground mb-4">Explore</h2>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex-1 relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={handleSearch}
-                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground"
-              />
-            </div>
-            <Button variant="outline" size="sm" className="sm:w-auto w-full">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={handleSearch}
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground"
+            />
           </div>
         </div>
+
+        {/* Trending Hashtags */}
+        {!searchQuery && <TrendingHashtags />}
 
         {/* Search Results */}
         {searchQuery && (
