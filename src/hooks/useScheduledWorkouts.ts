@@ -110,34 +110,6 @@ export const useScheduledWorkouts = () => {
     }
   };
 
-  const markWorkoutCompleted = async (scheduledWorkoutId: string) => {
-    if (!user) throw new Error('User not authenticated');
-    
-    try {
-      // First get the scheduled workout details
-      const scheduledWorkout = scheduledWorkouts.find(w => w.id === scheduledWorkoutId);
-      if (!scheduledWorkout) return;
-
-      // Create a workout session
-      const { error: sessionError } = await supabase
-        .from('workout_sessions')
-        .insert([{
-          workout_name: scheduledWorkout.workouts.title,
-          duration_minutes: scheduledWorkout.workouts.duration,
-          workout_type: scheduledWorkout.workouts.workout_type,
-          user_id: user.id
-        }]);
-        
-      if (sessionError) throw sessionError;
-
-      // Delete the scheduled workout
-      await deleteScheduledWorkout(scheduledWorkoutId);
-    } catch (error) {
-      console.error('Error marking workout as completed:', error);
-      throw error;
-    }
-  };
-
   useEffect(() => {
     fetchScheduledWorkouts();
   }, [user]);
@@ -147,7 +119,6 @@ export const useScheduledWorkouts = () => {
     loading,
     addScheduledWorkout,
     deleteScheduledWorkout,
-    fetchScheduledWorkouts,
-    markWorkoutCompleted
+    fetchScheduledWorkouts
   };
 };
