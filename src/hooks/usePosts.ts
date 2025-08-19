@@ -13,10 +13,6 @@ interface Post {
   image_url?: string;
   user_name?: string;
   user_username?: string;
-  user?: {
-    name: string;
-    username: string;
-  };
 }
 
 export const usePosts = () => {
@@ -28,26 +24,16 @@ export const usePosts = () => {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`
-          *,
-          users (
-            name,
-            username
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      // Transform the data to match expected format
+      // Transform the data to add default user info since we don't have a users table join
       const transformedPosts = (data || []).map(post => ({
         ...post,
-        user: post.users ? {
-          name: post.users.name,
-          username: post.users.username
-        } : undefined,
-        user_name: post.users?.name || 'Unknown User',
-        user_username: post.users?.username || 'unknown'
+        user_name: post.user_name || 'Anonymous User',
+        user_username: post.user_username || 'anonymous'
       }));
       
       setPosts(transformedPosts);

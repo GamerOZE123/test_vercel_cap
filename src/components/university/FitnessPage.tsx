@@ -32,9 +32,9 @@ export default function FitnessPage() {
   const [isMonthlyScheduleOpen, setIsMonthlyScheduleOpen] = useState(false);
 
   const { workouts, loading: workoutsLoading, addWorkout } = useWorkouts();
-  const { scheduledWorkouts, loading: scheduleLoading, markWorkoutCompleted } = useScheduledWorkouts();
+  const { scheduledWorkouts, loading: scheduleLoading, addScheduledWorkout, markWorkoutCompleted } = useScheduledWorkouts();
   const { challenges, loading: challengesLoading, userChallenges, joinChallenge } = useFitnessChallenges();
-  const { sessions, addSession } = useWorkoutSessions();
+  const { workoutSessions, completeWorkout } = useWorkoutSessions();
 
   const todaySchedule = scheduledWorkouts.filter(
     workout => workout.scheduled_date === new Date().toISOString().split('T')[0]
@@ -186,7 +186,7 @@ export default function FitnessPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Sessions This Month</p>
-                      <p className="text-2xl font-bold">{sessions.length}</p>
+                      <p className="text-2xl font-bold">{workoutSessions.length}</p>
                     </div>
                     <Users className="h-8 w-8 text-primary" />
                   </div>
