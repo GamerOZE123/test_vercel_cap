@@ -50,8 +50,20 @@ export const useComments = (postId: string) => {
       }
 
       console.log('Fetched comments:', data);
-      setComments(data || []);
-      setCommentsCount(data?.length || 0);
+      
+      // Transform the data to match our Comment interface
+      const transformedComments: Comment[] = (data || []).map((comment: any) => ({
+        id: comment.id,
+        content: comment.content,
+        created_at: comment.created_at,
+        user_id: comment.user_id,
+        profiles: Array.isArray(comment.profiles) && comment.profiles.length > 0 
+          ? comment.profiles[0]
+          : comment.profiles || null
+      }));
+      
+      setComments(transformedComments);
+      setCommentsCount(transformedComments.length);
     } catch (error) {
       console.error('Error in fetchComments:', error);
       setComments([]);
@@ -102,7 +114,14 @@ export const useComments = (postId: string) => {
 
       console.log('Comment added:', data);
       if (data && data[0]) {
-        setComments(prev => [...prev, data[0]]);
+        const newComment: Comment = {
+          ...data[0],
+          profiles: Array.isArray(data[0].profiles) && data[0].profiles.length > 0 
+            ? data[0].profiles[0]
+            : data[0].profiles || null
+        };
+        
+        setComments(prev => [...prev, newComment]);
         setCommentsCount(prev => prev + 1);
       }
       

@@ -22,10 +22,10 @@ export default function FitnessPage() {
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
 
-  const { workouts, loading: workoutsLoading, refetch: refetchWorkouts } = useWorkouts();
-  const { scheduledWorkouts, addScheduledWorkout, removeScheduledWorkout } = useScheduledWorkouts();
-  const { challenges, loading: challengesLoading, refetch: refetchChallenges } = useFitnessChallenges();
-  const { logWorkout } = useWorkoutSessions();
+  const { workouts, loading: workoutsLoading, fetchWorkouts } = useWorkouts();
+  const { scheduledWorkouts, addScheduledWorkout, deleteScheduledWorkout } = useScheduledWorkouts();
+  const { challenges, loading: challengesLoading, fetchChallenges } = useFitnessChallenges();
+  const { completeWorkout } = useWorkoutSessions();
 
   const todaysWorkouts = scheduledWorkouts.filter(
     workout => workout.scheduled_date === selectedDate
@@ -54,7 +54,7 @@ export default function FitnessPage() {
   };
 
   const handleWorkoutCreated = () => {
-    refetchWorkouts();
+    fetchWorkouts();
     setIsQuickWorkoutModalOpen(false);
   };
 
@@ -67,7 +67,7 @@ export default function FitnessPage() {
   };
 
   const handleChallengeCreated = () => {
-    refetchChallenges();
+    fetchChallenges();
     setIsChallengeModalOpen(false);
   };
 
@@ -126,7 +126,7 @@ export default function FitnessPage() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => removeScheduledWorkout(workout.id)}
+                  onClick={() => deleteScheduledWorkout(workout.id)}
                 >
                   Remove
                 </Button>
@@ -204,7 +204,7 @@ export default function FitnessPage() {
                 <Button 
                   size="sm" 
                   className="mt-3 w-full"
-                  onClick={() => addScheduledWorkout(workout.id, selectedDate, '09:00')}
+                  onClick={() => addScheduledWorkout(workout.id, '09:00', selectedDate)}
                 >
                   Add to Schedule
                 </Button>
@@ -222,33 +222,33 @@ export default function FitnessPage() {
       <AddQuickWorkoutModal
         isOpen={isQuickWorkoutModalOpen}
         onClose={() => setIsQuickWorkoutModalOpen(false)}
-        onWorkoutCreated={handleWorkoutCreated}
+        onAdd={handleWorkoutCreated}
       />
 
       <WorkoutLogModal
         isOpen={isWorkoutLogModalOpen}
         onClose={() => setIsWorkoutLogModalOpen(false)}
-        onWorkoutLogged={handleWorkoutLogged}
       />
 
       <AddToScheduleModal
         isOpen={isScheduleModalOpen}
         onClose={() => setIsScheduleModalOpen(false)}
-        onWorkoutScheduled={handleWorkoutScheduled}
-        workouts={workouts}
+        availableWorkouts={workouts}
+        onAdd={handleWorkoutScheduled}
       />
 
       <CreateChallengeModal
         isOpen={isChallengeModalOpen}
         onClose={() => setIsChallengeModalOpen(false)}
-        onChallengeCreated={handleChallengeCreated}
       />
 
       {selectedChallengeId && (
         <ChallengeDetailModal
-          challengeId={selectedChallengeId}
+          challenge={challenges.find(c => c.id === selectedChallengeId) || null}
           isOpen={!!selectedChallengeId}
           onClose={() => setSelectedChallengeId(null)}
+          isJoined={false}
+          onJoin={() => {}}
         />
       )}
     </div>
