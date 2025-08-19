@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +51,16 @@ export default function FitnessPage() {
       await joinChallenge(challengeId);
     } catch (error) {
       console.error('Error joining challenge:', error);
+    }
+  };
+
+  const handleScheduleWorkouts = async (workoutIds: string[], time: string, date?: string) => {
+    try {
+      for (const workoutId of workoutIds) {
+        await addScheduledWorkout(workoutId, time, date);
+      }
+    } catch (error) {
+      console.error('Error scheduling workouts:', error);
     }
   };
 
@@ -356,15 +365,15 @@ export default function FitnessPage() {
         <AddToScheduleModal
           isOpen={isScheduleModalOpen}
           onClose={() => setIsScheduleModalOpen(false)}
+          availableWorkouts={workouts}
+          onAdd={handleScheduleWorkouts}
         />
 
         <MonthlyScheduleModal
           isOpen={isMonthlyScheduleOpen}
           onClose={() => setIsMonthlyScheduleOpen(false)}
           availableWorkouts={workouts}
-          onSchedule={(workoutId: string, date: string, time: string) => {
-            console.log('Schedule workout:', workoutId, date, time);
-          }}
+          onSchedule={handleScheduleWorkouts}
         />
       </div>
     </div>

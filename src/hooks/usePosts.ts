@@ -11,6 +11,12 @@ interface Post {
   hashtags: string[];
   user_id: string;
   image_url?: string;
+  user_name?: string;
+  user_username?: string;
+  user?: {
+    name: string;
+    username: string;
+  };
 }
 
 export const usePosts = () => {
@@ -22,11 +28,29 @@ export const usePosts = () => {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          users (
+            name,
+            username
+          )
+        `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setPosts(data || []);
+      
+      // Transform the data to match expected format
+      const transformedPosts = (data || []).map(post => ({
+        ...post,
+        user: post.users ? {
+          name: post.users.name,
+          username: post.users.username
+        } : undefined,
+        user_name: post.users?.name || 'Unknown User',
+        user_username: post.users?.username || 'unknown'
+      }));
+      
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setPosts([]);
@@ -42,6 +66,7 @@ export const usePosts = () => {
   return {
     posts,
     loading,
-    refetch: fetchPosts
+    refetch: fetchPosts,
+    refreshPosts: fetchPosts // Add alias for backward compatibility
   };
 };

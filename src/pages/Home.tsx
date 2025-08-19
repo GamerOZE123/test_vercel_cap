@@ -39,8 +39,8 @@ export default function Home() {
                 key={post.id} 
                 post={{
                   ...post,
-                  user_name: post.user?.name || post.user_name || 'Unknown User',
-                  user_username: post.user?.username || post.user_username || 'unknown'
+                  user_name: post.user_name || 'Unknown User',
+                  user_username: post.user_username || 'unknown'
                 }} 
               />
             ))}
