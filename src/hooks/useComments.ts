@@ -114,11 +114,16 @@ export const useComments = (postId: string) => {
 
       console.log('Comment added:', data);
       if (data && data[0]) {
+        const profileData = Array.isArray(data[0].profiles) && data[0].profiles.length > 0 
+          ? data[0].profiles[0]
+          : data[0].profiles;
+          
         const newComment: Comment = {
-          ...data[0],
-          profiles: Array.isArray(data[0].profiles) && data[0].profiles.length > 0 
-            ? data[0].profiles[0]
-            : data[0].profiles || null
+          id: data[0].id,
+          content: data[0].content,
+          created_at: data[0].created_at,
+          user_id: data[0].user_id,
+          profiles: profileData || null
         };
         
         setComments(prev => [...prev, newComment]);
