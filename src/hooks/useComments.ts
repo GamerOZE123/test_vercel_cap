@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -114,16 +113,23 @@ export const useComments = (postId: string) => {
 
       console.log('Comment added:', data);
       if (data && data[0]) {
-        const profileData = Array.isArray(data[0].profiles) && data[0].profiles.length > 0 
-          ? data[0].profiles[0]
-          : data[0].profiles;
+        // Properly extract the profile data as a single object
+        let profileData: { full_name: string; username: string; avatar_url?: string } | null = null;
+        
+        if (data[0].profiles) {
+          if (Array.isArray(data[0].profiles) && data[0].profiles.length > 0) {
+            profileData = data[0].profiles[0];
+          } else if (!Array.isArray(data[0].profiles)) {
+            profileData = data[0].profiles;
+          }
+        }
           
         const newComment: Comment = {
           id: data[0].id,
           content: data[0].content,
           created_at: data[0].created_at,
           user_id: data[0].user_id,
-          profiles: profileData || null
+          profiles: profileData
         };
         
         setComments(prev => [...prev, newComment]);
