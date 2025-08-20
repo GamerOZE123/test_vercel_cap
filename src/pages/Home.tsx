@@ -141,6 +141,13 @@ export default function Home() {
           fetchPosts();
         }
       )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'posts' },
+        (payload) => {
+          console.log('Post deleted:', payload);
+          fetchPosts();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -166,7 +173,11 @@ export default function Home() {
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onPostUpdated={fetchPosts}
+              />
             ))
           ) : (
             <div className="post-card text-center py-12">
