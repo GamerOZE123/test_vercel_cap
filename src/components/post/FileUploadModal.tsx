@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -26,15 +25,9 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
-        return;
-      }
-
-      // Validate file type - support both PNG and JPEG
+      // Validate file type - support PNG, JPEG, and JPG
       if (!file.type.startsWith('image/') || (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('png'))) {
-        toast.error('Please select a valid PNG or JPEG image file');
+        toast.error('Please select a valid PNG, JPEG, or JPG image file');
         return;
       }
 
@@ -56,9 +49,9 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
       return new Promise((resolve) => {
         img.onload = async () => {
-          // Calculate new dimensions (max 1200px width, maintain aspect ratio)
-          const maxWidth = 1200;
-          const maxHeight = 1200;
+          // Calculate new dimensions based on file size and maintain aspect ratio
+          const maxWidth = file.size > 10 * 1024 * 1024 ? 800 : 1200; // Smaller max for very large files
+          const maxHeight = file.size > 10 * 1024 * 1024 ? 800 : 1200;
           let { width, height } = img;
 
           if (width > height) {
@@ -79,9 +72,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
           // Draw and compress the image
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // Determine output format and quality based on input
+          // Determine output format and quality based on input and file size
           const outputFormat = file.type.includes('png') ? 'image/png' : 'image/jpeg';
-          const quality = file.type.includes('png') ? 0.9 : 0.8; // PNG generally needs higher quality
+          let quality = 0.8; // Default quality
+          
+          // Adjust quality based on original file size for better compression
+          if (file.size > 20 * 1024 * 1024) { // > 20MB
+            quality = 0.6;
+          } else if (file.size > 10 * 1024 * 1024) { // > 10MB
+            quality = 0.7;
+          } else if (file.type.includes('png')) {
+            quality = 0.9; // PNG generally needs higher quality
+          }
           
           canvas.toBlob(async (blob) => {
             if (!blob) {
@@ -89,12 +91,23 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
               return;
             }
 
-            // Get the correct file extension
-            const fileExt = file.type.includes('png') ? 'png' : 'jpg';
+            // Get the correct file extension - support jpg, jpeg, and png
+            let fileExt = 'jpg';
+            if (file.type.includes('png')) {
+              fileExt = 'png';
+            } else if (file.type.includes('jpeg') || file.type.includes('jpg')) {
+              fileExt = 'jpg';
+            }
+            
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `posts/${fileName}`;
 
-            console.log('Uploading optimized image to storage...');
+            console.log('Uploading optimized image to storage...', {
+              originalSize: file.size,
+              compressedSize: blob.size,
+              format: outputFormat,
+              quality
+            });
             
             const { data, error } = await supabase.storage
               .from('post-images')
@@ -236,7 +249,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             ) : (
               <div className="text-center">
                 <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground mb-4">Select a PNG or JPEG image to upload</p>
+                <p className="text-muted-foreground mb-4">Select a PNG, JPEG, or JPG image to upload</p>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/jpg"
