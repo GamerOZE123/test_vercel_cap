@@ -215,9 +215,9 @@ export default function Chat() {
   if (!isMobile) {
     return (
       <Layout>
-        <div className="h-[calc(100vh-8rem)] flex gap-6">
+        <div className="h-[calc(100vh-6rem)] flex gap-4 pt-2">
           {/* User List */}
-          <div className="w-1/3 bg-card border border-border rounded-2xl p-6">
+          <div className="w-1/3 bg-card border border-border rounded-2xl p-4">
             <h2 className="text-xl font-bold text-foreground mb-4">Messages</h2>
             
             <UserSearch onStartChat={handleUserClick} />
@@ -251,7 +251,7 @@ export default function Chat() {
           <div className="flex-1 bg-card border border-border rounded-2xl flex flex-col">
             {selectedUser ? (
               <>
-                <div className="p-6 border-b border-border">
+                <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
@@ -298,7 +298,7 @@ export default function Chat() {
                 <div 
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
-                  className="flex-1 p-6 overflow-y-auto space-y-4"
+                  className="flex-1 p-4 overflow-y-auto space-y-4"
                 >
                   {currentMessages && currentMessages.map((message) => (
                     <div
@@ -326,7 +326,7 @@ export default function Chat() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-6 border-t border-border">
+                <div className="p-4 border-t border-border">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Type your message..."

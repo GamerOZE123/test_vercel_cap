@@ -151,7 +151,7 @@ export default function Home() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto pt-2">
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
@@ -162,7 +162,7 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto pt-2">
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => (

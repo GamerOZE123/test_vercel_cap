@@ -1,24 +1,22 @@
 
 import React from 'react';
-import { Home, MessageCircle, User, GraduationCap, LogOut, Bell } from 'lucide-react';
+import { Home, MessageCircle, User, GraduationCap, LogOut, Search } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
+  { name: 'Explore', href: '/explore', icon: Search },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Profile', href: '/profile', icon: User },
-  { name: 'University', href: '/university', icon: GraduationCap },
-  { name: 'Notifications', href: '/notifications', icon: Bell }
+  { name: 'University', href: '/university', icon: GraduationCap }
 ];
 
 export default function Sidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
-  const { unreadCount } = useNotifications();
 
   const handleSignOut = async () => {
     try {
@@ -48,7 +46,6 @@ export default function Sidebar() {
           <ul className="space-y-2">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
-              const isNotifications = item.name === 'Notifications';
               return (
                 <li key={item.name}>
                   <NavLink
@@ -60,11 +57,6 @@ export default function Sidebar() {
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium">{item.name}</span>
-                    {isNotifications && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
                   </NavLink>
                 </li>
               );
