@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -165,10 +166,12 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
       // Prepare hashtags - ensure they're properly formatted and not empty
       const formattedHashtags = hashtags
         .filter(tag => tag.trim())
-        .map(tag => tag.toLowerCase().replace(/^#+/, ''));
+        .map(tag => tag.toLowerCase().replace(/^#+/, '').trim())
+        .filter(tag => tag.length > 0);
+
+      console.log('Creating post with hashtags:', formattedHashtags);
 
       // Create the post with hashtags
-      console.log('Creating post with user:', user.id, 'hashtags:', formattedHashtags);
       const { data, error } = await supabase
         .from('posts')
         .insert({
@@ -184,7 +187,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         throw error;
       }
 
-      console.log('Post created successfully:', data);
+      console.log('Post created successfully with hashtags:', data);
       toast.success('Post uploaded successfully!');
       
       // Reset form

@@ -43,6 +43,8 @@ export default function PostCard({ post, onLike, onComment, onShare }: PostCardP
   const fullName = post.profiles?.full_name || post.user_name || 'Anonymous User';
   const avatarUrl = post.profiles?.avatar_url;
 
+  console.log('PostCard - post hashtags:', post.hashtags); // Debug log
+
   return (
     <Card className="w-full bg-card border border-border hover:shadow-md transition-shadow">
       <div className="p-4 space-y-4">
@@ -59,8 +61,8 @@ export default function PostCard({ post, onLike, onComment, onShare }: PostCardP
         />
         
         {/* Display hashtags below the content */}
-        {post.hashtags && post.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+        {post.hashtags && Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
             {post.hashtags.map((hashtag, index) => (
               <button
                 key={index}
