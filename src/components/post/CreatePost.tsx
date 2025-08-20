@@ -19,18 +19,12 @@ export default function CreatePost() {
 
     setIsPosting(true);
     try {
-      // Format hashtags properly
-      const formattedHashtags = hashtags
-        .filter(tag => tag.trim())
-        .map(tag => tag.toLowerCase().replace(/^#+/, '').trim())
-        .filter(tag => tag.length > 0);
-
       const { error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: content.trim(),
-          hashtags: formattedHashtags.length > 0 ? formattedHashtags : []
+          hashtags: hashtags.length > 0 ? hashtags : null
         });
 
       if (error) throw error;

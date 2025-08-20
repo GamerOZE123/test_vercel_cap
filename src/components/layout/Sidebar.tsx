@@ -1,61 +1,94 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Home, MessageCircle, User, GraduationCap, LogOut, Search } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { 
-  Home, 
-  Search, 
-  MessageCircle, 
-  Bell, 
-  User, 
-  Briefcase,
-  GraduationCap
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
-const navigationItems = [
-  { icon: Home, label: 'Home', href: '/home' },
-  { icon: Search, label: 'Explore', href: '/explore' },
-  { icon: GraduationCap, label: 'University', href: '/university' },
-  { icon: MessageCircle, label: 'Chat', href: '/chat' },
-  { icon: Bell, label: 'Notifications', href: '/notifications' },
-  { icon: Briefcase, label: 'Jobs', href: '/jobs' },
-  { icon: User, label: 'Profile', href: '/profile' },
+const navigation = [
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Explore', href: '/explore', icon: Search },
+  { name: 'Chat', href: '/chat', icon: MessageCircle },
+  { name: 'Profile', href: '/profile', icon: User },
+  { name: 'University', href: '/university', icon: GraduationCap }
 ];
 
 export default function Sidebar() {
   const location = useLocation();
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
-    <div className="hidden lg:flex flex-col w-64 bg-card border-r border-border h-screen sticky top-0">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-primary">UniConnect</h1>
+    <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border hidden md:block">
+      <div className="flex flex-col h-full">
+        {/* Logo */}
+        <div className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 university-gradient rounded-2xl flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Unigramm
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4">
+          <ul className="space-y-2">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <li key={item.name}>
+                  <NavLink
+                    to={item.href}
+                    className={cn(
+                      'nav-item relative',
+                      isActive && 'active'
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.name}</span>
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* User Profile at Bottom */}
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition-colors cursor-pointer">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+              <span className="text-sm font-bold text-white">
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {user?.email || 'User'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">Student</p>
+            </div>
+          </div>
+          <Button 
+            onClick={handleSignOut}
+            variant="ghost" 
+            className="w-full mt-2 justify-start text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
-      
-      <nav className="flex-1 px-4">
-        <ul className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.href;
-            
-            return (
-              <li key={item.href}>
-                <Link
-                  to={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors",
-                    isActive 
-                      ? "bg-primary text-primary-foreground" 
-                      : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  <Icon className="w-6 h-6" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </div>
+    </aside>
   );
 }

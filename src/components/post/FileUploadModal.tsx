@@ -26,6 +26,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file type - support PNG, JPEG, and JPG
       if (!file.type.startsWith('image/') || (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('png'))) {
         toast.error('Please select a valid PNG, JPEG, or JPG image file');
         return;
@@ -42,42 +43,47 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
   const optimizeAndUploadImage = async (file: File): Promise<string | null> => {
     try {
+      // Create a canvas to optimize the image
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
 
       return new Promise((resolve) => {
         img.onload = async () => {
-          // Calculate new dimensions - reduce size for portraits
-          const maxWidth = 800;
-          const maxHeight = 600;
+          // Calculate new dimensions based on file size and maintain aspect ratio
+          const maxWidth = file.size > 10 * 1024 * 1024 ? 800 : 1200; // Smaller max for very large files
+          const maxHeight = file.size > 10 * 1024 * 1024 ? 800 : 1200;
           let { width, height } = img;
 
-          // For portrait images, reduce the height more aggressively
-          if (height > width) {
-            if (height > maxHeight) {
-              width = (width * maxHeight) / height;
-              height = maxHeight;
-            }
-          } else {
+          if (width > height) {
             if (width > maxWidth) {
               height = (height * maxWidth) / width;
               width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
             }
           }
 
           canvas.width = width;
           canvas.height = height;
 
+          // Draw and compress the image
           ctx?.drawImage(img, 0, 0, width, height);
           
+          // Determine output format and quality based on input and file size
           const outputFormat = file.type.includes('png') ? 'image/png' : 'image/jpeg';
-          let quality = 0.8;
+          let quality = 0.8; // Default quality
           
-          if (file.size > 20 * 1024 * 1024) {
+          // Adjust quality based on original file size for better compression
+          if (file.size > 20 * 1024 * 1024) { // > 20MB
             quality = 0.6;
-          } else if (file.size > 10 * 1024 * 1024) {
+          } else if (file.size > 10 * 1024 * 1024) { // > 10MB
             quality = 0.7;
+          } else if (file.type.includes('png')) {
+            quality = 0.9; // PNG generally needs higher quality
           }
           
           canvas.toBlob(async (blob) => {
@@ -86,15 +92,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
               return;
             }
 
+            // Get the correct file extension - support jpg, jpeg, and png
             let fileExt = 'jpg';
             if (file.type.includes('png')) {
               fileExt = 'png';
+            } else if (file.type.includes('jpeg') || file.type.includes('jpg')) {
+              fileExt = 'jpg';
             }
             
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `posts/${fileName}`;
 
-            console.log('Uploading optimized image...', {
+            console.log('Uploading optimized image to storage...', {
               originalSize: file.size,
               compressedSize: blob.size,
               format: outputFormat,
@@ -120,6 +129,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
               .from('post-images')
               .getPublicUrl(filePath);
 
+            console.log('Image uploaded successfully:', publicUrl);
             resolve(publicUrl);
           }, outputFormat, quality);
         };
@@ -133,8 +143,8 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   };
 
   const handleUpload = async () => {
-    if (!user || !caption.trim()) {
-      toast.error('Please add a caption');
+    if (!user || (!selectedImage && !caption.trim())) {
+      toast.error('Please add an image or caption');
       return;
     }
 
@@ -142,6 +152,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
     try {
       let imageUrl = null;
 
+      // Upload image if selected
       if (selectedImage) {
         imageUrl = await optimizeAndUploadImage(selectedImage);
         
@@ -152,7 +163,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         }
       }
 
-      // Format hashtags properly
+      // Prepare hashtags - ensure they're properly formatted and not empty
       const formattedHashtags = hashtags
         .filter(tag => tag.trim())
         .map(tag => tag.toLowerCase().replace(/^#+/, '').trim())
@@ -160,13 +171,14 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
       console.log('Creating post with hashtags:', formattedHashtags);
 
+      // Create the post with hashtags
       const { data, error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
-          content: caption.trim(),
+          content: caption.trim() || 'New post',
           image_url: imageUrl,
-          hashtags: formattedHashtags.length > 0 ? formattedHashtags : []
+          hashtags: formattedHashtags.length > 0 ? formattedHashtags : null
         })
         .select();
 
@@ -175,14 +187,16 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         throw error;
       }
 
-      console.log('Post created successfully:', data);
+      console.log('Post created successfully with hashtags:', data);
       toast.success('Post uploaded successfully!');
       
+      // Reset form
       setSelectedImage(null);
       setImagePreview(null);
       setCaption('');
       setHashtags([]);
       
+      // Notify parent and close modal
       onPostCreated();
       onClose();
     } catch (error) {
@@ -214,13 +228,14 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         </DialogHeader>
         
         <div className="space-y-4">
+          {/* Image Upload Section */}
           <div className="border-2 border-dashed border-muted rounded-lg p-6">
             {imagePreview ? (
               <div className="relative">
                 <img 
                   src={imagePreview} 
                   alt="Preview" 
-                  className="w-full max-h-48 object-cover rounded-lg"
+                  className="w-full h-48 object-cover rounded-lg"
                 />
                 <Button
                   variant="secondary"
@@ -237,7 +252,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             ) : (
               <div className="text-center">
                 <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground mb-4">Add an image (optional)</p>
+                <p className="text-muted-foreground mb-4">Select a PNG, JPEG, or JPG image to upload</p>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/jpg"
@@ -255,6 +270,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             )}
           </div>
 
+          {/* Caption Section */}
           <div>
             <Textarea
               placeholder="Write a caption..."
@@ -265,6 +281,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             />
           </div>
 
+          {/* Hashtags Section */}
           <div>
             <label className="text-sm font-medium text-muted-foreground mb-2 block">
               Add Hashtags
@@ -272,13 +289,14 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             <HashtagSelector hashtags={hashtags} onHashtagsChange={setHashtags} />
           </div>
 
+          {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
             <Button 
               onClick={handleUpload} 
-              disabled={uploading || !caption.trim()}
+              disabled={uploading || (!selectedImage && !caption.trim())}
               className="flex-1"
             >
               {uploading ? (
@@ -289,7 +307,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
               ) : (
                 <>
                   <Upload className="w-4 h-4 mr-2" />
-                  Post
+                  Upload
                 </>
               )}
             </Button>
