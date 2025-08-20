@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { X, Upload, Image as ImageIcon, Hash } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import HashtagSelector from './HashtagSelector';
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -17,104 +17,133 @@ interface FileUploadModalProps {
 
 export default function FileUploadModal({ isOpen, onClose, onPostCreated }: FileUploadModalProps) {
   const { user } = useAuth();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
-  const [hashtagInput, setHashtagInput] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const compressImage = (file: File, maxSizeMB: number = 5): Promise<File> => {
-    return new Promise((resolve) => {
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type - support PNG, JPEG, and JPG
+      if (!file.type.startsWith('image/') || (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('png'))) {
+        toast.error('Please select a valid PNG, JPEG, or JPG image file');
+        return;
+      }
+
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const optimizeAndUploadImage = async (file: File): Promise<string | null> => {
+    try {
+      // Create a canvas to optimize the image
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
 
-      img.onload = () => {
-        // Calculate new dimensions
-        const maxWidth = 1920;
-        const maxHeight = 1080;
-        let { width, height } = img;
+      return new Promise((resolve) => {
+        img.onload = async () => {
+          // Calculate new dimensions based on file size and maintain aspect ratio
+          const maxWidth = file.size > 10 * 1024 * 1024 ? 800 : 1200; // Smaller max for very large files
+          const maxHeight = file.size > 10 * 1024 * 1024 ? 800 : 1200;
+          let { width, height } = img;
 
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
-          width *= ratio;
-          height *= ratio;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
           } else {
-            resolve(file);
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
           }
-        }, file.type, 0.8); // 80% quality
-      };
 
-      img.src = URL.createObjectURL(file);
-    });
-  };
+          canvas.width = width;
+          canvas.height = height;
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Check if file is an image
-      if (!file.type.match(/^image\/(jpeg|jpg|png)$/i)) {
-        toast.error('Please select a valid image file (JPG, JPEG, or PNG)');
-        return;
-      }
+          // Draw and compress the image
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Determine output format and quality based on input and file size
+          const outputFormat = file.type.includes('png') ? 'image/png' : 'image/jpeg';
+          let quality = 0.8; // Default quality
+          
+          // Adjust quality based on original file size for better compression
+          if (file.size > 20 * 1024 * 1024) { // > 20MB
+            quality = 0.6;
+          } else if (file.size > 10 * 1024 * 1024) { // > 10MB
+            quality = 0.7;
+          } else if (file.type.includes('png')) {
+            quality = 0.9; // PNG generally needs higher quality
+          }
+          
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
 
-      let processedFile = file;
+            // Get the correct file extension - support jpg, jpeg, and png
+            let fileExt = 'jpg';
+            if (file.type.includes('png')) {
+              fileExt = 'png';
+            } else if (file.type.includes('jpeg') || file.type.includes('jpg')) {
+              fileExt = 'jpg';
+            }
+            
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `posts/${fileName}`;
 
-      // Compress if larger than 5MB
-      if (file.size > 5 * 1024 * 1024) {
-        console.log('File is larger than 5MB, compressing...');
-        processedFile = await compressImage(file);
-        console.log('Original size:', file.size, 'Compressed size:', processedFile.size);
-      }
+            console.log('Uploading optimized image to storage...', {
+              originalSize: file.size,
+              compressedSize: blob.size,
+              format: outputFormat,
+              quality
+            });
+            
+            const { data, error } = await supabase.storage
+              .from('post-images')
+              .upload(filePath, blob, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: outputFormat
+              });
 
-      setSelectedFile(processedFile);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFilePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(processedFile);
-    }
-  };
+            if (error) {
+              console.error('Storage upload error:', error);
+              toast.error('Failed to upload image');
+              resolve(null);
+              return;
+            }
 
-  const addHashtag = () => {
-    if (hashtagInput.trim() && !hashtags.includes(hashtagInput.trim().toLowerCase())) {
-      const newTag = hashtagInput.trim().toLowerCase().replace(/^#+/, '');
-      if (newTag) {
-        setHashtags(prev => [...prev, newTag]);
-        setHashtagInput('');
-      }
-    }
-  };
+            const { data: { publicUrl } } = supabase.storage
+              .from('post-images')
+              .getPublicUrl(filePath);
 
-  const removeHashtag = (tagToRemove: string) => {
-    setHashtags(prev => prev.filter(tag => tag !== tagToRemove));
-  };
+            console.log('Image uploaded successfully:', publicUrl);
+            resolve(publicUrl);
+          }, outputFormat, quality);
+        };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addHashtag();
+        img.src = URL.createObjectURL(file);
+      });
+    } catch (error) {
+      console.error('Error optimizing and uploading image:', error);
+      return null;
     }
   };
 
   const handleUpload = async () => {
-    if (!user || (!selectedFile && !caption.trim())) {
+    if (!user || (!selectedImage && !caption.trim())) {
       toast.error('Please add an image or caption');
       return;
     }
@@ -124,52 +153,33 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
       let imageUrl = null;
 
       // Upload image if selected
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop()?.toLowerCase();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
-
-        console.log('Uploading image:', fileName);
+      if (selectedImage) {
+        imageUrl = await optimizeAndUploadImage(selectedImage);
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(filePath, selectedFile, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
+        if (!imageUrl) {
+          toast.error('Failed to upload image');
+          setUploading(false);
+          return;
         }
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('posts')
-          .getPublicUrl(filePath);
-
-        imageUrl = publicUrl;
-        console.log('Image uploaded successfully:', imageUrl);
       }
 
-      // Prepare hashtags array - ensure it's properly formatted
-      const formattedHashtags = hashtags.length > 0 ? hashtags : null;
-      
+      // Prepare hashtags - ensure they're properly formatted and not empty
+      const formattedHashtags = hashtags
+        .filter(tag => tag.trim())
+        .map(tag => tag.toLowerCase().replace(/^#+/, '').trim())
+        .filter(tag => tag.length > 0);
+
       console.log('Creating post with hashtags:', formattedHashtags);
 
-      // Create the post
-      const postData = {
-        user_id: user.id,
-        content: caption.trim() || 'New post',
-        image_url: imageUrl,
-        hashtags: formattedHashtags
-      };
-
-      console.log('Post data being inserted:', postData);
-
+      // Create the post with hashtags
       const { data, error } = await supabase
         .from('posts')
-        .insert(postData)
+        .insert({
+          user_id: user.id,
+          content: caption.trim() || 'New post',
+          image_url: imageUrl,
+          hashtags: formattedHashtags.length > 0 ? formattedHashtags : null
+        })
         .select();
 
       if (error) {
@@ -177,18 +187,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         throw error;
       }
 
-      console.log('Post created successfully:', data);
+      console.log('Post created successfully with hashtags:', data);
       toast.success('Post uploaded successfully!');
       
       // Reset form
-      setSelectedFile(null);
-      setFilePreview(null);
+      setSelectedImage(null);
+      setImagePreview(null);
       setCaption('');
       setHashtags([]);
-      setHashtagInput('');
       
       // Notify parent and close modal
       onPostCreated();
+      onClose();
     } catch (error) {
       console.error('Error uploading post:', error);
       toast.error('Failed to upload post');
@@ -198,11 +208,10 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   };
 
   const handleClose = () => {
-    setSelectedFile(null);
-    setFilePreview(null);
+    setSelectedImage(null);
+    setImagePreview(null);
     setCaption('');
     setHashtags([]);
-    setHashtagInput('');
     onClose();
   };
 
@@ -221,10 +230,10 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         <div className="space-y-4">
           {/* Image Upload Section */}
           <div className="border-2 border-dashed border-muted rounded-lg p-6">
-            {filePreview ? (
+            {imagePreview ? (
               <div className="relative">
                 <img 
-                  src={filePreview} 
+                  src={imagePreview} 
                   alt="Preview" 
                   className="w-full h-48 object-cover rounded-lg"
                 />
@@ -233,8 +242,8 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
                   size="sm"
                   className="absolute top-2 right-2"
                   onClick={() => {
-                    setSelectedFile(null);
-                    setFilePreview(null);
+                    setSelectedImage(null);
+                    setImagePreview(null);
                   }}
                 >
                   <X className="w-4 h-4" />
@@ -243,11 +252,11 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             ) : (
               <div className="text-center">
                 <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground mb-4">Select an image to upload</p>
+                <p className="text-muted-foreground mb-4">Select a PNG, JPEG, or JPG image to upload</p>
                 <input
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png"
-                  onChange={handleFileSelect}
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleImageSelect}
                   className="hidden"
                   id="image-upload"
                 />
@@ -273,39 +282,11 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
           </div>
 
           {/* Hashtags Section */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Hash className="w-4 h-4 text-muted-foreground" />
-              <Input
-                value={hashtagInput}
-                onChange={(e) => setHashtagInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Add hashtag"
-                className="flex-1"
-              />
-              <Button size="sm" onClick={addHashtag} disabled={!hashtagInput.trim()}>
-                Add
-              </Button>
-            </div>
-            
-            {hashtags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {hashtags.map((tag, index) => (
-                  <div key={index} className="flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm">
-                    <Hash className="w-3 h-3" />
-                    <span>{tag}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeHashtag(tag)}
-                      className="h-auto p-0 w-4 h-4 hover:bg-transparent"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div>
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">
+              Add Hashtags
+            </label>
+            <HashtagSelector hashtags={hashtags} onHashtagsChange={setHashtags} />
           </div>
 
           {/* Action Buttons */}
@@ -315,7 +296,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             </Button>
             <Button 
               onClick={handleUpload} 
-              disabled={uploading || (!selectedFile && !caption.trim())}
+              disabled={uploading || (!selectedImage && !caption.trim())}
               className="flex-1"
             >
               {uploading ? (
