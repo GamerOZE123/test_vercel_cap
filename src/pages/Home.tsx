@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 export default function Home() {
-  const { data: posts, isLoading, refetch } = usePosts();
+  const { posts, loading, refetch } = usePosts();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const handlePostCreated = () => {
@@ -19,7 +19,7 @@ export default function Home() {
     refetch();
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="max-w-2xl mx-auto p-4 space-y-6">
         <div className="animate-pulse">
