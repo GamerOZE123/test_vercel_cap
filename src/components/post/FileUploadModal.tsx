@@ -26,6 +26,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -35,31 +47,78 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
     }
   };
 
-  const uploadImageToStorage = async (file: File): Promise<string | null> => {
+  const optimizeAndUploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `posts/${fileName}`;
+      // Create a canvas to optimize the image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
 
-      const { data, error } = await supabase.storage
-        .from('post-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      return new Promise((resolve) => {
+        img.onload = async () => {
+          // Calculate new dimensions (max 1200px width, maintain aspect ratio)
+          const maxWidth = 1200;
+          const maxHeight = 1200;
+          let { width, height } = img;
 
-      if (error) {
-        console.error('Storage upload error:', error);
-        return null;
-      }
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('post-images')
-        .getPublicUrl(filePath);
+          canvas.width = width;
+          canvas.height = height;
 
-      return publicUrl;
+          // Draw and compress the image
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+
+            const fileExt = file.name.split('.').pop() || 'jpg';
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `posts/${fileName}`;
+
+            console.log('Uploading optimized image to storage...');
+            
+            const { data, error } = await supabase.storage
+              .from('post-images')
+              .upload(filePath, blob, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type
+              });
+
+            if (error) {
+              console.error('Storage upload error:', error);
+              toast.error('Failed to upload image');
+              resolve(null);
+              return;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('post-images')
+              .getPublicUrl(filePath);
+
+            console.log('Image uploaded successfully:', publicUrl);
+            resolve(publicUrl);
+          }, file.type, 0.8); // 80% quality
+        };
+
+        img.src = URL.createObjectURL(file);
+      });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error optimizing and uploading image:', error);
       return null;
     }
   };
@@ -76,8 +135,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
       // Upload image if selected
       if (selectedImage) {
-        console.log('Uploading image to storage...');
-        imageUrl = await uploadImageToStorage(selectedImage);
+        imageUrl = await optimizeAndUploadImage(selectedImage);
         
         if (!imageUrl) {
           toast.error('Failed to upload image');
@@ -85,15 +143,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         }
       }
 
+      // Prepare hashtags - ensure they're properly formatted
+      const formattedHashtags = hashtags.filter(tag => tag.trim()).map(tag => tag.toLowerCase().replace('#', ''));
+
       // Create the post with hashtags
-      console.log('Creating post with user:', user.id);
+      console.log('Creating post with user:', user.id, 'hashtags:', formattedHashtags);
       const { data, error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: caption.trim() || 'New post',
           image_url: imageUrl,
-          hashtags: hashtags.length > 0 ? hashtags : null
+          hashtags: formattedHashtags.length > 0 ? formattedHashtags : null
         })
         .select();
 

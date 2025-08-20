@@ -1,114 +1,78 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/ui/card';
-import { useLikes } from '@/hooks/useLikes';
-import { useComments } from '@/hooks/useComments';
 import PostHeader from './PostHeader';
 import PostContent from './PostContent';
 import PostActions from './PostActions';
-import CommentSection from './CommentSection';
-import ClickablePostCard from './ClickablePostCard';
-import { Hash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Post {
   id: string;
   content: string;
   image_url?: string;
+  hashtags?: string[];
   created_at: string;
   likes_count: number;
   comments_count: number;
-  user_id: string;
-  user_name: string;
-  user_username: string;
-  user_university?: string;
-  hashtags?: string[];
+  profiles: {
+    username: string;
+    full_name: string;
+    avatar_url?: string;
+  };
 }
 
 interface PostCardProps {
   post: Post;
+  onLike?: () => void;
+  onComment?: () => void;
+  onShare?: () => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onLike, onComment, onShare }: PostCardProps) {
   const navigate = useNavigate();
-  const [showComments, setShowComments] = useState(false);
-  const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
-  const { 
-    comments, 
-    commentsCount, 
-    addComment, 
-    deleteComment, 
-    submitting: commentsSubmitting 
-  } = useComments(post.id);
 
-  const handleToggleComments = () => {
-    setShowComments(!showComments);
-  };
-
-  const handleHashtagClick = (e: React.MouseEvent, hashtag: string) => {
-    e.stopPropagation();
+  const handleHashtagClick = (hashtag: string) => {
     navigate(`/hashtag/${hashtag}`);
   };
 
-  // Create user object for PostHeader
-  const userForHeader = {
-    name: post.user_name || 'Anonymous User',
-    avatar: (post.user_name || 'A').charAt(0).toUpperCase(),
-    university: post.user_university || 'University'
-  };
-
   return (
-    <ClickablePostCard postId={post.id}>
-      <Card className="bg-card border-border">
-        <div className="p-6">
-          <PostHeader
-            user={userForHeader}
-            timestamp={new Date(post.created_at).toLocaleDateString()}
-            isOwnPost={false}
-          />
-          
-          <PostContent
-            content={post.content}
-            fileUrl={post.image_url}
-          />
-          
-          {/* Display hashtags */}
-          {post.hashtags && post.hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {post.hashtags.map((tag, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm cursor-pointer hover:bg-primary/20 transition-colors"
-                  onClick={(e) => handleHashtagClick(e, tag)}
-                >
-                  <Hash className="w-3 h-3" />
-                  <span>{tag}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <PostActions
-            postId={post.id}
-            postContent={post.content}
-            likesCount={likesCount}
-            commentsCount={commentsCount}
-            isLiked={isLiked}
-            onLike={toggleLike}
-            onComment={handleToggleComments}
-            likesLoading={likesLoading}
-          />
-          
-          {showComments && (
-            <CommentSection
-              comments={comments}
-              onAddComment={addComment}
-              onDeleteComment={deleteComment}
-              submitting={commentsSubmitting}
-            />
-          )}
-        </div>
-      </Card>
-    </ClickablePostCard>
+    <Card className="w-full bg-card border border-border hover:shadow-md transition-shadow">
+      <div className="p-4 space-y-4">
+        <PostHeader 
+          username={post.profiles.username}
+          fullName={post.profiles.full_name}
+          avatarUrl={post.profiles.avatar_url}
+          createdAt={post.created_at}
+        />
+        
+        <PostContent 
+          content={post.content}
+          imageUrl={post.image_url}
+        />
+        
+        {/* Display hashtags */}
+        {post.hashtags && post.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {post.hashtags.map((hashtag, index) => (
+              <button
+                key={index}
+                onClick={() => handleHashtagClick(hashtag)}
+                className="text-blue-500 hover:text-blue-700 hover:underline text-sm font-medium cursor-pointer transition-colors"
+              >
+                #{hashtag}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        <PostActions 
+          likesCount={post.likes_count}
+          commentsCount={post.comments_count}
+          onLike={onLike}
+          onComment={onComment}
+          onShare={onShare}
+        />
+      </div>
+    </Card>
   );
 }
