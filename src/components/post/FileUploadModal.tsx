@@ -35,6 +35,35 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
     }
   };
 
+  const uploadImageToStorage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `posts/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('post-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+  };
+
   const handleUpload = async () => {
     if (!user || (!selectedImage && !caption.trim())) {
       toast.error('Please add an image or caption');
@@ -47,18 +76,16 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
       // Upload image if selected
       if (selectedImage) {
-        const fileExt = selectedImage.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
-
-        console.log('Uploading image:', fileName);
+        console.log('Uploading image to storage...');
+        imageUrl = await uploadImageToStorage(selectedImage);
         
-        // For now, we'll create a placeholder URL since storage isn't configured
-        // In a real app, you would upload to Supabase storage here
-        imageUrl = `https://via.placeholder.com/600x400?text=Image+${fileName}`;
+        if (!imageUrl) {
+          toast.error('Failed to upload image');
+          return;
+        }
       }
 
-      // Create the post
+      // Create the post with hashtags
       console.log('Creating post with user:', user.id);
       const { data, error } = await supabase
         .from('posts')
