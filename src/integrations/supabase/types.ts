@@ -1204,6 +1204,16 @@ export type Database = {
         Args: { user1_id: string; user2_id: string }
         Returns: string
       }
+      get_public_student_info: {
+        Args: { target_user_id: string }
+        Returns: {
+          experience_level: string
+          preferred_job_types: string[]
+          preferred_location: string
+          skills: string[]
+          user_id: string
+        }[]
+      }
       get_recent_chats: {
         Args: { target_user_id: string }
         Returns: {
