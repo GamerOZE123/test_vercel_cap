@@ -32,9 +32,9 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         return;
       }
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select a valid image file');
+      // Validate file type - support both PNG and JPEG
+      if (!file.type.startsWith('image/') || (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('png'))) {
+        toast.error('Please select a valid PNG or JPEG image file');
         return;
       }
 
@@ -79,13 +79,18 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
           // Draw and compress the image
           ctx?.drawImage(img, 0, 0, width, height);
           
+          // Determine output format and quality based on input
+          const outputFormat = file.type.includes('png') ? 'image/png' : 'image/jpeg';
+          const quality = file.type.includes('png') ? 0.9 : 0.8; // PNG generally needs higher quality
+          
           canvas.toBlob(async (blob) => {
             if (!blob) {
               resolve(null);
               return;
             }
 
-            const fileExt = file.name.split('.').pop() || 'jpg';
+            // Get the correct file extension
+            const fileExt = file.type.includes('png') ? 'png' : 'jpg';
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `posts/${fileName}`;
 
@@ -96,7 +101,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
               .upload(filePath, blob, {
                 cacheControl: '3600',
                 upsert: false,
-                contentType: file.type
+                contentType: outputFormat
               });
 
             if (error) {
@@ -112,7 +117,7 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
 
             console.log('Image uploaded successfully:', publicUrl);
             resolve(publicUrl);
-          }, file.type, 0.8); // 80% quality
+          }, outputFormat, quality);
         };
 
         img.src = URL.createObjectURL(file);
@@ -139,12 +144,15 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
         
         if (!imageUrl) {
           toast.error('Failed to upload image');
+          setUploading(false);
           return;
         }
       }
 
-      // Prepare hashtags - ensure they're properly formatted
-      const formattedHashtags = hashtags.filter(tag => tag.trim()).map(tag => tag.toLowerCase().replace('#', ''));
+      // Prepare hashtags - ensure they're properly formatted and not empty
+      const formattedHashtags = hashtags
+        .filter(tag => tag.trim())
+        .map(tag => tag.toLowerCase().replace(/^#+/, ''));
 
       // Create the post with hashtags
       console.log('Creating post with user:', user.id, 'hashtags:', formattedHashtags);
@@ -228,10 +236,10 @@ export default function FileUploadModal({ isOpen, onClose, onPostCreated }: File
             ) : (
               <div className="text-center">
                 <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground mb-4">Select an image to upload</p>
+                <p className="text-muted-foreground mb-4">Select a PNG or JPEG image to upload</p>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/jpg"
                   onChange={handleImageSelect}
                   className="hidden"
                   id="image-upload"

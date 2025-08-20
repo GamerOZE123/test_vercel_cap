@@ -58,9 +58,9 @@ export default function PostCard({ post, onLike, onComment, onShare }: PostCardP
           imageUrl={post.image_url}
         />
         
-        {/* Display hashtags */}
+        {/* Display hashtags below the content */}
         {post.hashtags && post.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="flex flex-wrap gap-2">
             {post.hashtags.map((hashtag, index) => (
               <button
                 key={index}
