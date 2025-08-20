@@ -10,31 +10,50 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface PostHeaderProps {
-  user: {
-    name: string;
-    avatar: string;
-    university: string;
-  };
-  timestamp: string;
-  isOwnPost: boolean;
+  username: string;
+  fullName: string;
+  avatarUrl?: string;
+  createdAt: string;
+  isOwnPost?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-export default function PostHeader({ user, timestamp, isOwnPost, onEdit, onDelete }: PostHeaderProps) {
+export default function PostHeader({ 
+  username, 
+  fullName, 
+  avatarUrl, 
+  createdAt, 
+  isOwnPost = false, 
+  onEdit, 
+  onDelete 
+}: PostHeaderProps) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
+    
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    return `${Math.floor(diffInSeconds / 86400)}d`;
+  };
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-          <span className="text-sm font-bold text-white">{user.avatar}</span>
+          <span className="text-sm font-bold text-white">
+            {avatarUrl || fullName?.charAt(0) || username?.charAt(0) || 'U'}
+          </span>
         </div>
         <div>
-          <p className="font-semibold text-foreground">{user.name}</p>
-          <p className="text-sm text-muted-foreground">{user.university}</p>
+          <p className="font-semibold text-foreground">{fullName || username}</p>
+          <p className="text-sm text-muted-foreground">@{username}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">{timestamp}</span>
+        <span className="text-sm text-muted-foreground">{formatDate(createdAt)}</span>
         {isOwnPost && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

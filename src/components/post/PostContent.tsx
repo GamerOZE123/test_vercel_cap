@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 interface PostContentProps {
   content: string;
-  fileUrl?: string;
+  imageUrl?: string;
 }
 
 const isImageUrl = (url: string) => {
@@ -20,21 +20,21 @@ const getFileNameFromUrl = (url: string) => {
   return url.split('/').pop() || 'File';
 };
 
-export default function PostContent({ content, fileUrl }: PostContentProps) {
+export default function PostContent({ content, imageUrl }: PostContentProps) {
   const handleDownload = () => {
-    if (fileUrl) {
-      window.open(fileUrl, '_blank');
+    if (imageUrl) {
+      window.open(imageUrl, '_blank');
     }
   };
 
   return (
     <div className="space-y-3">
       <p className="text-foreground leading-relaxed">{content}</p>
-      {fileUrl && (
+      {imageUrl && (
         <div className="rounded-xl overflow-hidden">
-          {isImageUrl(fileUrl) ? (
+          {isImageUrl(imageUrl) ? (
             <img 
-              src={fileUrl} 
+              src={imageUrl} 
               alt="Post content" 
               className="w-full h-auto object-cover"
             />
@@ -43,7 +43,7 @@ export default function PostContent({ content, fileUrl }: PostContentProps) {
               <div className="flex items-center gap-3">
                 <File className="w-8 h-8 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-foreground">{getFileNameFromUrl(fileUrl)}</p>
+                  <p className="font-medium text-foreground">{getFileNameFromUrl(imageUrl)}</p>
                   <p className="text-sm text-muted-foreground">Attached file</p>
                 </div>
               </div>

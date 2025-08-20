@@ -14,7 +14,10 @@ interface Post {
   created_at: string;
   likes_count: number;
   comments_count: number;
-  profiles: {
+  user_id?: string;
+  user_name?: string;
+  user_username?: string;
+  profiles?: {
     username: string;
     full_name: string;
     avatar_url?: string;
@@ -35,13 +38,18 @@ export default function PostCard({ post, onLike, onComment, onShare }: PostCardP
     navigate(`/hashtag/${hashtag}`);
   };
 
+  // Extract user info from either profiles object or direct properties
+  const username = post.profiles?.username || post.user_username || 'user';
+  const fullName = post.profiles?.full_name || post.user_name || 'Anonymous User';
+  const avatarUrl = post.profiles?.avatar_url;
+
   return (
     <Card className="w-full bg-card border border-border hover:shadow-md transition-shadow">
       <div className="p-4 space-y-4">
         <PostHeader 
-          username={post.profiles.username}
-          fullName={post.profiles.full_name}
-          avatarUrl={post.profiles.avatar_url}
+          username={username}
+          fullName={fullName}
+          avatarUrl={avatarUrl}
           createdAt={post.created_at}
         />
         
@@ -71,6 +79,8 @@ export default function PostCard({ post, onLike, onComment, onShare }: PostCardP
           onLike={onLike}
           onComment={onComment}
           onShare={onShare}
+          postId={post.id}
+          postContent={post.content}
         />
       </div>
     </Card>

@@ -6,27 +6,37 @@ import { cn } from '@/lib/utils';
 import ShareModal from './ShareModal';
 
 interface PostActionsProps {
-  postId: string;
-  postContent: string;
   likesCount: number;
   commentsCount: number;
-  isLiked: boolean;
-  onLike: () => void;
-  onComment: () => void;
+  onLike?: () => void;
+  onComment?: () => void;
+  onShare?: () => void;
+  isLiked?: boolean;
   likesLoading?: boolean;
+  postId?: string;
+  postContent?: string;
 }
 
 export default function PostActions({ 
-  postId,
-  postContent,
   likesCount, 
   commentsCount, 
-  isLiked, 
+  isLiked = false, 
   onLike, 
   onComment,
-  likesLoading = false 
+  onShare,
+  likesLoading = false,
+  postId = '',
+  postContent = ''
 }: PostActionsProps) {
   const [showShareModal, setShowShareModal] = useState(false);
+
+  const handleShare = () => {
+    if (onShare) {
+      onShare();
+    } else {
+      setShowShareModal(true);
+    }
+  };
 
   return (
     <>
@@ -59,7 +69,7 @@ export default function PostActions({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setShowShareModal(true)}
+            onClick={handleShare}
             className="flex items-center gap-2 hover:bg-muted/50"
           >
             <Share className="w-5 h-5" />
@@ -68,12 +78,14 @@ export default function PostActions({
         </div>
       </div>
 
-      <ShareModal
-        open={showShareModal}
-        onOpenChange={setShowShareModal}
-        postId={postId}
-        postContent={postContent}
-      />
+      {postId && (
+        <ShareModal
+          open={showShareModal}
+          onOpenChange={setShowShareModal}
+          postId={postId}
+          postContent={postContent}
+        />
+      )}
     </>
   );
 }
