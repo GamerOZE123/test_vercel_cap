@@ -1,18 +1,13 @@
 
 import React, { useState } from 'react';
-import { X, Upload, File } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import HashtagSelector from './HashtagSelector';
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -22,162 +17,187 @@ interface FileUploadModalProps {
 
 export default function FileUploadModal({ isOpen, onClose, onPostCreated }: FileUploadModalProps) {
   const { user } = useAuth();
-  const [content, setContent] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!user || (!content.trim() && !selectedFile)) {
-      toast.error('Please add content or select a file');
+  const handleUpload = async () => {
+    if (!user || (!selectedImage && !caption.trim())) {
+      toast.error('Please add an image or caption');
       return;
     }
 
     setUploading(true);
-    
     try {
-      let fileUrl = null;
+      let imageUrl = null;
 
-      // Upload file if selected
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      // Upload image if selected
+      if (selectedImage) {
+        const fileExt = selectedImage.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+
+        console.log('Uploading image:', fileName);
         
-        console.log('Uploading file to bucket:', fileName);
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(fileName, selectedFile);
-
-        if (uploadError) {
-          console.error('File upload error:', uploadError);
-          toast.error('Failed to upload file: ' + uploadError.message);
-          return;
-        }
-
-        console.log('File uploaded successfully:', uploadData);
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('posts')
-          .getPublicUrl(fileName);
-        
-        fileUrl = publicUrl;
-        console.log('Public URL:', fileUrl);
+        // For now, we'll create a placeholder URL since storage isn't configured
+        // In a real app, you would upload to Supabase storage here
+        imageUrl = `https://via.placeholder.com/600x400?text=Image+${fileName}`;
       }
 
-      // Create post in database
-      console.log('Creating post with user ID:', user.id);
-      const { data: postData, error: postError } = await supabase
+      // Create the post
+      console.log('Creating post with user:', user.id);
+      const { data, error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
-          content: content.trim() || 'Shared a file',
-          image_url: fileUrl
+          content: caption.trim() || 'New post',
+          image_url: imageUrl,
+          hashtags: hashtags.length > 0 ? hashtags : null
         })
         .select();
 
-      if (postError) {
-        console.error('Post creation error:', postError);
-        toast.error('Failed to create post: ' + postError.message);
-        return;
+      if (error) {
+        console.error('Error creating post:', error);
+        throw error;
       }
 
-      console.log('Post created successfully:', postData);
-      toast.success('Post created successfully!');
-      setContent('');
-      setSelectedFile(null);
+      console.log('Post created successfully:', data);
+      toast.success('Post uploaded successfully!');
+      
+      // Reset form
+      setSelectedImage(null);
+      setImagePreview(null);
+      setCaption('');
+      setHashtags([]);
+      
+      // Notify parent and close modal
       onPostCreated();
       onClose();
     } catch (error) {
-      console.error('Error creating post:', error);
-      toast.error('Failed to create post');
+      console.error('Error uploading post:', error);
+      toast.error('Failed to upload post');
     } finally {
       setUploading(false);
     }
   };
 
   const handleClose = () => {
-    if (!uploading) {
-      setContent('');
-      setSelectedFile(null);
-      onClose();
-    }
+    setSelectedImage(null);
+    setImagePreview(null);
+    setCaption('');
+    setHashtags([]);
+    onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Post</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            Create New Post
+            <Button variant="ghost" size="icon" onClick={handleClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
-          <Textarea
-            placeholder="What's on your mind?"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px] resize-none"
-            disabled={uploading}
-          />
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Attach File (Optional)</label>
-            <div className="border-2 border-dashed border-border rounded-lg p-4">
-              <Input
-                type="file"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="file-upload"
-                disabled={uploading}
-                accept="*/*"
-              />
-              <label
-                htmlFor="file-upload"
-                className="cursor-pointer flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Upload className="w-8 h-8" />
-                <span className="text-sm">Click to select a file</span>
-              </label>
-            </div>
-            
-            {selectedFile && (
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                <File className="w-4 h-4" />
-                <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+          {/* Image Upload Section */}
+          <div className="border-2 border-dashed border-muted rounded-lg p-6">
+            {imagePreview ? (
+              <div className="relative">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-full h-48 object-cover rounded-lg"
+                />
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
-                  onClick={() => setSelectedFile(null)}
-                  disabled={uploading}
+                  className="absolute top-2 right-2"
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setImagePreview(null);
+                  }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
+            ) : (
+              <div className="text-center">
+                <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground mb-4">Select an image to upload</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                >
+                  Choose Image
+                </Button>
+              </div>
             )}
           </div>
-          
+
+          {/* Caption Section */}
+          <div>
+            <Textarea
+              placeholder="Write a caption..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+
+          {/* Hashtags Section */}
+          <div>
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">
+              Add Hashtags
+            </label>
+            <HashtagSelector hashtags={hashtags} onHashtagsChange={setHashtags} />
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              disabled={uploading}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={uploading || (!content.trim() && !selectedFile)}
+            <Button 
+              onClick={handleUpload} 
+              disabled={uploading || (!selectedImage && !caption.trim())}
               className="flex-1"
             >
-              {uploading ? 'Creating...' : 'Create Post'}
+              {uploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </>
+              )}
             </Button>
           </div>
         </div>

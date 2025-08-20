@@ -57,8 +57,13 @@ export default function CreatePost() {
             className="min-h-[100px] resize-none bg-transparent border-none p-0 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
           />
           
-          <div className="mt-3">
-            <HashtagSelector hashtags={hashtags} onHashtagsChange={setHashtags} />
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                Add Hashtags
+              </label>
+              <HashtagSelector hashtags={hashtags} onHashtagsChange={setHashtags} />
+            </div>
           </div>
           
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">

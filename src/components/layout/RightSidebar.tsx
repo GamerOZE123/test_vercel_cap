@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Hash, TrendingUp, UserPlus } from 'lucide-react';
+import { Hash, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +53,10 @@ export default function RightSidebar() {
     navigate(`/profile/${userId}`);
   };
 
+  const handleHashtagClick = (hashtag: string) => {
+    navigate(`/hashtag/${hashtag}`);
+  };
+
   return (
     <aside className="hidden xl:block fixed top-16 right-0 w-80 h-[calc(100vh-4rem)] overflow-y-auto bg-card border-l border-border p-6">
       {/* Random Users */}
@@ -75,28 +79,24 @@ export default function RightSidebar() {
             </div>
           ) : (
             randomUsers.map((randomUser) => (
-              <div key={randomUser.user_id} className="flex items-center justify-between">
-                <div 
-                  className="flex items-center gap-3 cursor-pointer flex-1"
-                  onClick={() => handleUserClick(randomUser.user_id)}
-                >
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {randomUser.full_name?.charAt(0) || randomUser.username?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {randomUser.full_name || randomUser.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {randomUser.university || randomUser.major || 'Student'}
-                    </p>
-                  </div>
+              <div 
+                key={randomUser.user_id} 
+                className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-muted/20 transition-colors"
+                onClick={() => handleUserClick(randomUser.user_id)}
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <span className="text-sm font-bold text-white">
+                    {randomUser.full_name?.charAt(0) || randomUser.username?.charAt(0) || 'U'}
+                  </span>
                 </div>
-                <Button variant="outline" size="sm" className="btn-ghost">
-                  <UserPlus className="w-3 h-3" />
-                </Button>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {randomUser.full_name || randomUser.username}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {randomUser.university || randomUser.major || 'Student'}
+                  </p>
+                </div>
               </div>
             ))
           )}
@@ -123,7 +123,11 @@ export default function RightSidebar() {
         ) : (
           <div className="space-y-3">
             {hashtags.slice(0, 5).map((tag, index) => (
-              <div key={tag.hashtag} className="flex items-center justify-between">
+              <div 
+                key={tag.hashtag} 
+                className="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-muted/20 transition-colors"
+                onClick={() => handleHashtagClick(tag.hashtag)}
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-muted-foreground w-4">
                     #{index + 1}

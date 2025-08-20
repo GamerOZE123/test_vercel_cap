@@ -9,6 +9,7 @@ import PostActions from './PostActions';
 import CommentSection from './CommentSection';
 import ClickablePostCard from './ClickablePostCard';
 import { Hash } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Post {
   id: string;
@@ -29,6 +30,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post }: PostCardProps) {
+  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const { isLiked, likesCount, toggleLike, loading: likesLoading } = useLikes(post.id);
   const { 
@@ -41,6 +43,11 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handleToggleComments = () => {
     setShowComments(!showComments);
+  };
+
+  const handleHashtagClick = (e: React.MouseEvent, hashtag: string) => {
+    e.stopPropagation();
+    navigate(`/hashtag/${hashtag}`);
   };
 
   // Create user object for PostHeader
@@ -69,7 +76,11 @@ export default function PostCard({ post }: PostCardProps) {
           {post.hashtags && post.hashtags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {post.hashtags.map((tag, index) => (
-                <div key={index} className="flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm">
+                <div 
+                  key={index} 
+                  className="flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm cursor-pointer hover:bg-primary/20 transition-colors"
+                  onClick={(e) => handleHashtagClick(e, tag)}
+                >
                   <Hash className="w-3 h-3" />
                   <span>{tag}</span>
                 </div>
